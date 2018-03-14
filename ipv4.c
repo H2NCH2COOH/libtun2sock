@@ -91,12 +91,12 @@ int ipv4_hdr_calc_checksum(IPv4Header* hdr)
         sum += *p++;
     }
 
-    while(sum > 0xFFFF)
+    while(sum >> 16)
     {
-        sum = (sum & 0xFFFF) + ((sum & 0xFFFF0000) >> 16);
+        sum = (sum & 0xFFFF) + (sum >> 16);
     }
 
-    hdr->checksum = (sum & 0xFFFF) ^ 0xFFFF;
+    hdr->checksum = ~sum;
 
     return 0;
 }
@@ -113,9 +113,9 @@ int ipv4_hdr_check_checksum(IPv4Header* hdr)
         sum += *p++;
     }
 
-    while(sum > 0xFFFF)
+    while(sum >> 16)
     {
-        sum = (sum & 0xFFFF) + ((sum & 0xFFFF0000) >> 16);
+        sum = (sum & 0xFFFF) + (sum >> 16);
     }
 
     return (sum == 0xFFFF)? 0 : -1;

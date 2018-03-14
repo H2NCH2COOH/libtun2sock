@@ -36,4 +36,26 @@ typedef struct
         (hdr)->_b13 = (v) & 0xFF; \
     }while(0)
 
+/***
+ * Calculate and set the checksum of TCP header
+ * @param src The source IPv4/6 address
+ * @param dst The destination IPv4/6 address
+ * @param hdr Pointer to a TCPHeader and following data
+ * @param data_len The length of TCP data
+ * @return 0 for success, -1 for failure
+ */
+int tcp4_hdr_calc_checksum(uint8_t src[4], uint8_t dst[4], TCPHeader* hdr, uint16_t data_len);
+int tcp6_hdr_calc_checksum(uint8_t src[16], uint8_t dst[16], TCPHeader* hdr, uint32_t data_len);
+
+/***
+ * Check the checksum of TCP header
+ * @param src The source IPv4/6 address
+ * @param dst The destination IPv4/6 address
+ * @param hdr Pointer to a TCPHeader and following data
+ * @param data_len The length of TCP data
+ * @return 0 for success, -1 for failure
+ */
+int tcp4_hdr_check_checksum(uint8_t src[4], uint8_t dst[4], TCPHeader* hdr, uint16_t data_len);
+int tcp6_hdr_check_checksum(uint8_t src[16], uint8_t dst[16], TCPHeader* hdr, uint32_t data_len);
+
 #endif /* _TCP_H_ */

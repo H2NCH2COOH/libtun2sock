@@ -3,12 +3,6 @@
 #include <ctype.h>
 #include "ipv6.h"
 
-/***
- * "xxxx:xxxx:xxxx::xxxx:xxxx:xxxx" -> IPv6Addr
- * @param str NUL terminated string
- * @param addr Pointer to a IPv6Addr
- * @return 0 for success, -1 for failure
- */
 int ipv6_aton(const char* str, IPv6Addr* addr)
 {
     const char* XDIGIT = "0123456789abcdef";
@@ -107,11 +101,6 @@ out:
     return 0;
 }
 
-/***
- * IPv6Addr -> "xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx"
- * @param addr Pointer to a IPv6Addr
- * @return A NUL terminated string within a static buffer
- */
 const char* ipv6_ntoa(IPv6Addr* addr)
 {
     static char buff[40];
