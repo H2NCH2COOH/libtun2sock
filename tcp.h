@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#define PROTOCOL_TCP 6
-
 typedef struct
 {
     uint16_t sport;
