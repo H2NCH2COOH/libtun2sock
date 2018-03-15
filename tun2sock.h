@@ -139,20 +139,21 @@ int_fast32_t tun2sock_get_original_port_tcp6(Tun2Sock* t2s, uint8_t addr[16], ui
 
 /***
  * Add a entry to NAT table
- * Using the following functions, the user can supply a remote address A2, a local address A1 and a local port P1
- * The function will return a remote port P2
- * The user can then send TCP/UDP traffic to [A2:P2] (A2 should route to the TUN) from the target address and the traffic will be redirected to [A1:P1]
- * These functions is mainly used to let a remote peer to connect to a local program as if the local program is listening on a public interface
+ * Using the following functions, the user can supply a remote address A2:P2, a local address A1:P1
+ * The function will return a port P2'
+ * The user can then send TCP/UDP traffic to [A2:P2'] (A2 should route to the TUN) from the target address and the traffic will be redirected to [A1:P1] with source address as [A2:P2]
+ * These functions is mainly used to let a remote peer to connect to a local program
  * @param t2s       The Tun2Sock struct
  * @param raddr     The remote IP address
+ * @param rport     The remote port
  * @param laddr     The local IP address
  * @param lport     The local port
  * @return          >0 The allocated remote port
  *                  <0 Error number
  */
-int_fast32_t tun2sock_add_nat_udp4(Tun2Sock* t2s, uint8_t raddr[4], uint8_t laddr[4], uint16_t lport);
-int_fast32_t tun2sock_add_nat_tcp4(Tun2Sock* t2s, uint8_t raddr[4], uint8_t laddr[4], uint16_t lport);
-int_fast32_t tun2sock_add_nat_udp6(Tun2Sock* t2s, uint8_t raddr[16], uint8_t laddr[16], uint16_t lport);
-int_fast32_t tun2sock_add_nat_tcp6(Tun2Sock* t2s, uint8_t raddr[16], uint8_t laddr[16], uint16_t lport);
+int_fast32_t tun2sock_add_nat_udp4(Tun2Sock* t2s, uint8_t raddr[4], uint16_t rport, uint8_t laddr[4], uint16_t lport);
+int_fast32_t tun2sock_add_nat_tcp4(Tun2Sock* t2s, uint8_t raddr[4], uint16_t rport, uint8_t laddr[4], uint16_t lport);
+int_fast32_t tun2sock_add_nat_udp6(Tun2Sock* t2s, uint8_t raddr[16], uint16_t rport, uint8_t laddr[16], uint16_t lport);
+int_fast32_t tun2sock_add_nat_tcp6(Tun2Sock* t2s, uint8_t raddr[16], uint16_t rport, uint8_t laddr[16], uint16_t lport);
 
 #endif /* _TUN2SOCK_H_ */
