@@ -39,8 +39,8 @@
 /***
  * Flag items
  */
-#define TUN2SOCK_FLAG_IPV4  1
-#define TUN2SOCK_FLAG_IPV6  2
+#define TUN2SOCK_FLAG_IPV4                  1 //Support IPv4
+#define TUN2SOCK_FLAG_IPV6                  2 //Support IPv6
 
 /***
  * Error numbers
@@ -52,10 +52,10 @@
 
 #define TUN2SOCK_E_DRPPKT       -20 //The packet should be dropped (No reason and no error)
 #define TUN2SOCK_E_BADPKT       -21 //The packet is invalid (e.g. Bad checksum)
-#define TUN2SOCK_E_NOPORT       -22 //Port for NAT is depleted
-#define TUN2SOCK_E_PROTO        -23 //Unsupported protocol (e.g. ICMP)
+#define TUN2SOCK_E_PROTO        -22 //Unsupported protocol (e.g. ICMP)
 
-#define TUN2SOCK_E_NONAT        -30 //The address is not found in the NAT table
+#define TUN2SOCK_E_CTNFND       -30 //Address not found in connection track
+#define TUN2SOCK_E_CTFULL       -31 //Connection track full
 
 typedef struct Tun2Sock_s Tun2Sock;
 struct Tun2Sock_s
@@ -66,18 +66,25 @@ struct Tun2Sock_s
     void* (*realloc)(void* ptr, int size);
 
     /***
+     * The number of seconds elapsed from a monotonic clock
+     */
+    uint32_t (*time)();
+
+    /***
      * TUN2SOCK_FLAG_* ORed
      */
     int flags;
 
     /***
      * The IPv4 target address and port
+     * !NOTE: the port should be in network order
      */
     uint8_t target_addr4[4];
     uint16_t target_port4;
 
     /***
      * The IPv6 target address and port
+     * !NOTE: the port should be in network order
      */
     uint8_t target_addr6[16];
     uint16_t target_port6;
@@ -125,6 +132,7 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt);
 
 /***
  * Get the original destination port using the NAT address
+ * !NOTE: The port returned is in network order
  * Choose the right function based on protocol
  * @param t2s       The Tun2Sock struct
  * @param addr      The IP address
@@ -143,6 +151,7 @@ int_fast32_t tun2sock_get_original_port_tcp6(Tun2Sock* t2s, uint8_t addr[16], ui
  * The function will return a port P2'
  * The user can then send TCP/UDP traffic to [A2:P2'] (A2 should route to the TUN) from the target address and the traffic will be redirected to [A1:P1] with source address as [A2:P2]
  * These functions is mainly used to let a remote peer to connect to a local program
+ * !NOTE: The port returned is in network order
  * @param t2s       The Tun2Sock struct
  * @param raddr     The remote IP address
  * @param rport     The remote port
