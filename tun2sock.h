@@ -13,6 +13,8 @@
  * This lib will either tell the user to drop the packet or
  * modifys it and tell the user to send it back to the TUN interface
  *
+ * If some error occured, the lib may modify the packet into some error response (ICMP/TCP RST)
+ *
  * Then the user should receive the traffic in the listening socket with
  * destination address as [A0:P0] and source address allocated by this lib, called NAT address
  * The NAT address has the SAME IP address as the original destination and a allocated port
@@ -41,6 +43,8 @@
  */
 #define TUN2SOCK_FLAG_IPV4                  1 //Support IPv4
 #define TUN2SOCK_FLAG_IPV6                  2 //Support IPv6
+#define TUN2SOCK_FLAG_NO_ICMP_ERR_RSP       4 //Do not return ICMP destination unreachable when denying a packet
+#define TUN2SOCK_FLAG_NO_TCP_RST_ERR_RSP    8 //Do not return TCP RST when denying a TCP packet (Will use ICMP if allowed)
 
 /***
  * Error numbers
@@ -53,9 +57,6 @@
 #define TUN2SOCK_E_DRPPKT       -20 //The packet should be dropped (No reason and no error)
 #define TUN2SOCK_E_BADPKT       -21 //The packet is invalid (e.g. Bad checksum)
 #define TUN2SOCK_E_PROTO        -22 //Unsupported protocol (e.g. ICMP)
-
-#define TUN2SOCK_E_CTNFND       -30 //Address not found in connection track
-#define TUN2SOCK_E_CTFULL       -31 //Connection track full
 
 typedef struct Tun2Sock_s Tun2Sock;
 struct Tun2Sock_s
@@ -120,15 +121,23 @@ const char* tun2sock_strerr(int err);
 
 /***
  * Input a packet
- * This function should be called when a IP(v4/v6) packet is received from the tun
- * This function will decide if the packet should be dropped or modified and send back to the tun
- * This function will only modify the IP & TCP/UDP header
+ * This function should be called when a IP(v4/v6) packet is received from the TUN
+ * This function will decide if the packet should be dropped or modified and send back to the TUN
+ * When a NAT is found/created, this function will modify the headers of the packet
+ * When an error occurred, this function may rewrite a error response into the buffer
+ * The buffer containing the packet should be at lest large enough for an ICMP(v6) destination unreachable message
  * @param t2s       The Tun2Sock struct
- * @param pkt       The packet (Need to be a valid IP packet and mutable)
- * @return          0  The packet is modified and should be send back to the tun
+ * @param pkt       The packet (Need to be a valid IP packet and mutable and big enough for error message)
+ * @return          >0 The total length of the modified packet to be send back to the TUN
  *                  <0 Error number, and the packet shoud be dropped
  */
 int tun2sock_input(Tun2Sock* t2s, char* pkt);
+
+/***
+ * The minimum size of the buffer of packet pased into tun2sock_input() to allow for an error message
+ */
+#define TUN2SOCK_MIN_IPV4_PKT_BUFF_SIZE (20 + 8 + 20 + 8) //IPv4 header + ICMP header + IPv4 header + 8 bytes of payload
+#define TUN2SOCK_MIN_IPV6_PKT_BUFF_SIZE (40 + 8 + 40 + 8) //IPv6 header + ICMP header + IPv6 header + 8 bytes of payload
 
 /***
  * Get the original destination port using the NAT address
