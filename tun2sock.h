@@ -53,10 +53,17 @@
 
 #define TUN2SOCK_E_INVAL        -1
 #define TUN2SOCK_E_NOMEM        -2
+#define TUN2SOCK_E_INTERNAL     -3 //Internal error
 
 #define TUN2SOCK_E_DRPPKT       -20 //The packet should be dropped (No reason and no error)
 #define TUN2SOCK_E_BADPKT       -21 //The packet is invalid (e.g. Bad checksum)
 #define TUN2SOCK_E_PROTO        -22 //Unsupported protocol (e.g. ICMP)
+
+#define TUN2SOCK_E_NOCONN       -30 //Connection not found
+#define TUN2SOCK_E_NONAT        -31 //NAT not found
+#define TUN2SOCK_E_MAXCONN      -32 //Reached maximum connections
+#define TUN2SOCK_E_MAXNAT       -33 //No more port for NAT
+#define TUN2SOCK_E_EXTCONN      -34 //A connection already exists
 
 typedef struct Tun2Sock_s Tun2Sock;
 struct Tun2Sock_s
@@ -67,7 +74,9 @@ struct Tun2Sock_s
     void* (*realloc)(void* ptr, int size);
 
     /***
-     * The number of seconds elapsed from a monotonic clock
+     * The number of (milli)seconds elapsed from a monotonic clock
+     * The unit of time this function returns does not matter
+     * As long as the unit is the same used in the timeouts, all will be fine
      */
     uint32_t (*time)();
 
@@ -89,6 +98,21 @@ struct Tun2Sock_s
      */
     uint8_t target_addr6[16];
     uint16_t target_port6;
+
+    /***
+     * The timeout for a connection
+     * After this much time of inaction, the connection/NAT will be released and reused
+     * The unit should be the same returned by the time() function
+     */
+    uint32_t timeout;
+
+    /***
+     * The bits of maximum connections this lib can handle simutaneously
+     * A value of N means that (2 ** N) number of connections
+     */
+    int max_connections_bits;
+
+    //TODO: Add more options to fine tune
 
     /***
      * Internal data attached during execution

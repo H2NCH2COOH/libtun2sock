@@ -39,11 +39,15 @@ void* pool_ref(Pool* p, PoolId id);
 /***
  * Get a new object from the pool
  * @param p                 The pool
+ * @param id                Will store the id of the new object inside
+ *                          Must not be NULL
  * @param obj               If not NULL, will store the pointer to the new object inside when success
  *                          Save a call to pool_ref()
- * @return                  Success: A PoolId that can be used in pool_ref()
- *                          Failure: POOLID_NULL
+ * @return                  0  Success
+ *                          -1 Reached maximum count
+ *                          -2 Not enough memory
+ *                          -X Other errors
  */
-PoolId pool_get(Pool* p, void** obj);
+ int pool_get(Pool* p, PoolId* id, void** obj);
 
 #endif /* _POOL_H_ */

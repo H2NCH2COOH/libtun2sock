@@ -123,11 +123,16 @@ void* pool_ref(Pool* p, PoolId id)
     return p->aa[ai] + p->obj_size * i;
 }
 
-PoolId pool_get(Pool* p, void** obj)
+int pool_get(Pool* p, PoolId* id, void** obj)
 {
+    if(id == NULL)
+    {
+        return -3;
+    }
+
     if(p->max_cnt > 0 && p->cnt >= (size_t)p->max_cnt)
     {
-        return POOLID_NULL;
+        return -1;
     }
 
     size_t ai = p->cnt / p->grow_step;
@@ -141,7 +146,7 @@ PoolId pool_get(Pool* p, void** obj)
             void** aa = p->realloc(p->aa, sizeof(void*) * (p->aa_size + INFINIT_AA_STEP));
             if(aa == NULL)
             {
-                return POOLID_NULL;
+                return -2;
             }
 
             p->aa = aa;
@@ -151,14 +156,14 @@ PoolId pool_get(Pool* p, void** obj)
         void* a = p->realloc(NULL, p->obj_size * p->grow_step);
         if(a == NULL)
         {
-            return POOLID_NULL;
+            return -2;
         }
 
         p->aa[p->aa_cnt] = a;
         ++p->aa_cnt;
     }
 
-    PoolId id = p->cnt;
+    *id = p->cnt;
     ++p->cnt;
 
     if(obj != NULL)
@@ -166,5 +171,5 @@ PoolId pool_get(Pool* p, void** obj)
         *obj = p->aa[ai] + p->obj_size * i;
     }
 
-    return id;
+    return 0;
 }
