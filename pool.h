@@ -14,7 +14,7 @@ extern PoolId POOLID_NULL; //The NULL id
  * @param obj_size          The size of one object
  * @param max_cnt           The maximum count of objects in this pool
  *                          -1 means the pool will grow indefinitely
- * @param grow_step         The number of new objects to allocate when the pool is full
+ * @param grow_step         The number of new objects to allocate when the pool is full and at start
  *                          max_cnt (if positive) must be divisible by grow_step
  * @return                  Success: The pointer to the newly created pool
  *                          Failure: NULL
@@ -39,9 +39,11 @@ void* pool_ref(Pool* p, PoolId id);
 /***
  * Get a new object from the pool
  * @param p                 The pool
+ * @param obj               If not NULL, will store the pointer to the new object inside when success
+ *                          Save a call to pool_ref()
  * @return                  Success: A PoolId that can be used in pool_ref()
  *                          Failure: POOLID_NULL
  */
-PoolId pool_get(Pool* p);
+PoolId pool_get(Pool* p, void** obj);
 
 #endif /* _POOL_H_ */
