@@ -55,6 +55,9 @@ int tun_alloc(const char* dev)
 
 int main(int argc, char** argv)
 {
+    (void)argc;
+    (void)argv;
+
     errno = 0;
     int fd = tun_alloc("tun10");
     if(fd < 0)
@@ -63,9 +66,10 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    system("ip addr add 10.99.99.1/24 dev tun10");
-    system("ip link set dev tun10 mtu 1500");
-    system("ip link set dev tun10 up");
+    int ff = system("ip addr add 10.99.99.1/24 dev tun10");
+    ff = system("ip link set dev tun10 mtu 1500");
+    ff = system("ip link set dev tun10 up");
+    (void)ff;
 
     char buff[1600];
 
@@ -141,6 +145,7 @@ int main(int argc, char** argv)
         }
 
         printf("Data length: %d\n", data_len);
+        (void)data;
     }
 
     close(fd);
