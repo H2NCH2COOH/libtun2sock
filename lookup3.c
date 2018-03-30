@@ -313,6 +313,7 @@ uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
      * noticably faster for short strings (like English words).
      */
 #ifndef VALGRIND
+    (void)k8;
 
     switch(length)
     {
@@ -498,6 +499,7 @@ void hashlittle2(
      * noticably faster for short strings (like English words).
      */
 #ifndef VALGRIND
+    (void)k8;
 
     switch(length)
     {
@@ -675,6 +677,7 @@ uint32_t hashbig( const void *key, size_t length, uint32_t initval)
      * noticably faster for short strings (like English words).
      */
 #ifndef VALGRIND
+    (void)k8;
 
     switch(length)
     {
