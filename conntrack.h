@@ -75,6 +75,8 @@ typedef struct
         PoolId oldest;
         PoolId newest;
     } timeout_lists[CONN_ST_SIZE];
+
+    uint16_t last_nat_port;
 } ConnTrack;
 
 /***

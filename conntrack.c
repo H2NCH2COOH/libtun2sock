@@ -66,12 +66,14 @@ int conntrack_init(ConnTrack* track, int ipver, void* (*realloc)(void*, size_t),
         track->timeout_lists[i].newest = POOLID_NULL;
     }
 
+    track->last_nat_port = 0;
+
     return 0;
 }
 
 #define conn_timeout(c, t) ((c)->last_active + (t)->timeouts[(c)->state])
 
-static uint32_t conntrack_nat_hash(int ipver, ConnTrack* track, Conn* conn)
+static uint32_t conntrack_nat_hash(int ipver, ConnTrack* track, uint8_t* addr, uint16_t port)
 {
     struct
     {
@@ -92,9 +94,8 @@ static uint32_t conntrack_nat_hash(int ipver, ConnTrack* track, Conn* conn)
 
     if(ipver == 4)
     {
-        Conn4* conn4 = (Conn4*)conn;
-        memcpy(key4.addr, conn4->ext_addr, 4);
-        key4.port = conn4->nat_port;
+        memcpy(key4.addr, addr, 4);
+        key4.port = port;
         key4.zero = 0;
 
         key = &key4;
@@ -102,9 +103,8 @@ static uint32_t conntrack_nat_hash(int ipver, ConnTrack* track, Conn* conn)
     }
     else
     {
-        Conn6* conn6 = (Conn6*)conn;
-        memcpy(key6.addr, conn6->ext_addr, 16);
-        key6.port = conn6->nat_port;
+        memcpy(key6.addr, addr, 16);
+        key6.port = port;
         key6.zero = 0;
 
         key = &key6;
@@ -112,6 +112,20 @@ static uint32_t conntrack_nat_hash(int ipver, ConnTrack* track, Conn* conn)
     }
 
     return hashword(key, key_len, track->ht_iv) & hashmask(track->ht_size_bits);
+}
+
+static uint32_t conntrack_nat_hash_conn(int ipver, ConnTrack* track, Conn* conn)
+{
+    if(ipver == 4)
+    {
+        Conn4* conn4 = (Conn4*)conn;
+        return conntrack_nat_hash(4, track, conn4->ext_addr, conn4->nat_port);
+    }
+    else
+    {
+        Conn6* conn6 = (Conn6*)conn;
+        return conntrack_nat_hash(6, track, conn6->ext_addr, conn6->nat_port);
+    }
 }
 
 static void conntrack_remove_from_timeout(ConnTrack* track, PoolId id, Conn* conn)
@@ -167,13 +181,66 @@ static void conntrack_add_to_timeout(ConnTrack* track, PoolId id, Conn* conn)
     conn->timeout_next = POOLID_NULL;
 }
 
+static int conntrack_nat_search(int ipver, ConnTrack* track, PoolId* id_out, Conn** conn_out, uint8_t* addr, uint16_t port)
+{
+    //CURSOR
+    return 0;
+}
+
 /***
  * Create a new NAT and set nat_port and insert into NAT hash table
  * If failed, will not modify conn
  */
 static int conntrack_new_nat(int ipver, ConnTrack* track, PoolId id, Conn* conn)
 {
-    //CURSOR
+    uint16_t p = track->last_nat_port + 1;
+
+    uint8_t* addr = (ipver == 4)? ((Conn4*)conn)->ext_addr : ((Conn6*)conn)->ext_addr;
+
+    for(p = track->last_nat_port + 1; p != track->last_nat_port; ++p)
+    {
+        if(p == 0)
+        {
+            continue;
+        }
+
+        PoolId id_n = POOLID_NULL;
+        Conn* conn_n = NULL;
+        int ret = conntrack_nat_search(ipver, track, &id_n, &conn_n, addr, p);
+        if(ret == 0)
+        {
+            continue;
+        }
+        else if(ret != TUN2SOCK_E_NONAT)
+        {
+            //Error
+            return ret;
+        }
+
+
+        //Usable port
+        //TODO: Duplicated hash
+        uint32_t hash = conntrack_nat_hash(ipver, track, addr, p);
+        conn->ht_nat_prev = POOLID_NULL;
+        conn->ht_nat_next = track->ht_nat[hash];
+        track->ht_nat[hash] = id;
+
+        if(ipver == 4)
+        {
+            Conn4* conn4 = (Conn4*)conn;
+            conn4->nat_port = p;
+        }
+        else
+        {
+            Conn6* conn6 = (Conn6*)conn;
+            conn6->nat_port = p;
+        }
+
+        track->last_nat_port = p;
+
+        return 0;
+    }
+
     return TUN2SOCK_E_MAXNAT;
 }
 
@@ -370,7 +437,7 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
         if(last_free_conn->ht_nat_prev == POOLID_NULL)
         {
             //First in the list
-            uint32_t hash = conntrack_nat_hash(ipver, track, last_free_conn);
+            uint32_t hash = conntrack_nat_hash_conn(ipver, track, last_free_conn);
             track->ht_nat[hash] = last_free_conn->ht_nat_next;
         }
         else
@@ -423,7 +490,7 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
     {
         //Failed to find a new NAT
         //Insert this free connection into the free list
-        conntrack_add_to_timeout(track, last_free, last_free_conn);
+        conntrack_touch(track, last_free, last_free_conn, CONN_ST_FREE);
         return ret;
     }
 
@@ -459,5 +526,12 @@ int conntrack_touch(ConnTrack* track, PoolId id, Conn* conn, ConnState state)
     return 0;
 }
 
-int conntrack_nat_search4(ConnTrack* track, PoolId* id, Conn4** conn, uint8_t addr[4], uint16_t port);
-int conntrack_nat_search6(ConnTrack* track, PoolId* id, Conn6** conn, uint8_t addr[16], uint16_t port);
+int conntrack_nat_search4(ConnTrack* track, PoolId* id, Conn4** conn, uint8_t addr[4], uint16_t port)
+{
+    return conntrack_nat_search(4, track, id, (Conn**)conn, addr, port);
+}
+
+int conntrack_nat_search6(ConnTrack* track, PoolId* id, Conn6** conn, uint8_t addr[16], uint16_t port)
+{
+    return conntrack_nat_search(6, track, id, (Conn**)conn, addr, port);
+}
