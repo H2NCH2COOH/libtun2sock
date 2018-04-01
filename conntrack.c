@@ -181,10 +181,182 @@ static void conntrack_add_to_timeout(ConnTrack* track, PoolId id, Conn* conn)
     conn->timeout_next = POOLID_NULL;
 }
 
-static int conntrack_nat_search(int ipver, ConnTrack* track, PoolId* id_out, Conn** conn_out, uint8_t* addr, uint16_t port)
+static void conntrack_touch_now(ConnTrack* track, PoolId id, Conn* conn, ConnState state, uint32_t now)
 {
-    //CURSOR
-    return 0;
+    conntrack_remove_from_timeout(track, id, conn);
+    conn->last_active = now;
+    conn->state = state;
+    conntrack_add_to_timeout(track, id, conn);
+}
+
+static void conntrack_add_to_conn(int ipver, ConnTrack* track, PoolId id, Conn* conn, uint32_t* hashp)
+{
+    uint32_t hash;
+    if(hashp != NULL)
+    {
+        hash = *hashp;
+    }
+    else
+    {
+        hash = hashword((void*)conn + sizeof(Conn), (ipver == 4)? (4 + 2 + 4 + 2)/4 : (16 + 2 + 16 + 2)/4, track->ht_iv) & hashmask(track->ht_size_bits);
+    }
+
+    conn->ht_conn_prev = POOLID_NULL;
+    conn->ht_conn_next = track->ht_conn[hash];
+    track->ht_conn[hash] = id;
+}
+
+
+static void conntrack_remove_from_conn(int ipver, ConnTrack* track, PoolId id, Conn* conn, uint32_t* hashp)
+{
+    if(conn->ht_conn_next == id)
+    {
+        return;
+    }
+
+    if(conn->ht_conn_prev == POOLID_NULL)
+    {
+        uint32_t hash;
+        if(hashp != NULL)
+        {
+            hash = *hashp;
+        }
+        else
+        {
+            hash = hashword((void*)conn + sizeof(Conn), (ipver == 4)? (4 + 2 + 4 + 2)/4 : (16 + 2 + 16 + 2)/4, track->ht_iv) & hashmask(track->ht_size_bits);
+        }
+        track->ht_conn[hash] = conn->ht_conn_next;
+    }
+    else
+    {
+        if(conn->ht_conn_next != POOLID_NULL)
+        {
+            Conn* next = pool_ref(track->pool, conn->ht_conn_next);
+            next->ht_conn_prev = conn->ht_conn_prev;
+        }
+        Conn* prev = pool_ref(track->pool, conn->ht_conn_prev);
+        prev->ht_conn_next = conn->ht_conn_next;
+    }
+
+    conn->ht_conn_next = id;
+    conn->ht_conn_prev = id;
+}
+
+static void conntrack_add_to_nat(int ipver, ConnTrack* track, PoolId id, Conn* conn, uint32_t* hashp)
+{
+    uint32_t hash;
+    if(hashp != NULL)
+    {
+        hash = *hashp;
+    }
+    else
+    {
+        if(ipver == 4)
+        {
+            Conn4* conn4 = (Conn4*)conn;
+            hash = conntrack_nat_hash(ipver, track, conn4->ext_addr, conn4->nat_port);
+        }
+        else
+        {
+            Conn6* conn6 = (Conn6*)conn;
+            hash = conntrack_nat_hash(ipver, track, conn6->ext_addr, conn6->nat_port);
+        }
+    }
+
+    conn->ht_nat_prev = POOLID_NULL;
+    conn->ht_nat_next = track->ht_nat[hash];
+    track->ht_nat[hash] = id;
+}
+
+static void conntrack_remove_from_nat(int ipver, ConnTrack* track, PoolId id, Conn* conn, uint32_t* hashp)
+{
+    if(conn->ht_nat_next == id)
+    {
+        return;
+    }
+
+    if(conn->ht_nat_prev == POOLID_NULL)
+    {
+        uint32_t hash;
+        if(hashp != NULL)
+        {
+            hash = *hashp;
+        }
+        else
+        {
+            hash = conntrack_nat_hash_conn(ipver, track, conn);
+        }
+        track->ht_nat[hash] = conn->ht_nat_next;
+    }
+    else
+    {
+        if(conn->ht_nat_next != POOLID_NULL)
+        {
+            Conn* next = pool_ref(track->pool, conn->ht_nat_next);
+            next->ht_nat_prev = conn->ht_nat_prev;
+        }
+        Conn* prev = pool_ref(track->pool, conn->ht_nat_prev);
+        prev->ht_nat_next = conn->ht_nat_next;
+    }
+
+    conn->ht_nat_prev = id;
+    conn->ht_nat_next = id;
+}
+
+static int conntrack_nat_search(int ipver, ConnTrack* track, PoolId* id_out, Conn** conn_out, uint8_t* addr, uint16_t port, uint32_t* hash_out)
+{
+    uint32_t hash = conntrack_nat_hash(ipver, track, addr, port);
+    *hash_out = hash;
+
+    uint32_t now = track->time();
+
+    PoolId id = track->ht_nat[hash];
+    while(id != POOLID_NULL)
+    {
+        Conn* conn = pool_ref(track->pool, id);
+
+        //Cleanup timeout
+        if(conn_timeout(conn, track) <= now)
+        {
+            id = conn->ht_nat_next;
+
+            //Move timeout connection to free list
+            conntrack_remove_from_conn(ipver, track, id, conn, NULL);
+            conntrack_remove_from_nat(ipver, track, id, conn, &hash);
+            conntrack_touch_now(track, id, conn, CONN_ST_FREE, now);
+
+            continue;
+        }
+
+        int found = 0;
+        if(ipver == 4)
+        {
+            Conn4* conn4 = (Conn4*)conn;
+            if(conn4->nat_port == port && memcmp(conn4->ext_addr, addr, 4) == 0)
+            {
+                found = 1;
+            }
+        }
+        else
+        {
+            Conn6* conn6 = (Conn6*)conn;
+            if(conn6->nat_port == port && memcmp(conn6->ext_addr, addr, 16) == 0)
+            {
+                found = 1;
+            }
+        }
+
+        if(found)
+        {
+            *id_out = id;
+            *conn_out = conn;
+            return 0;
+        }
+
+        id = conn->ht_nat_next;
+    }
+
+    return TUN2SOCK_E_NONAT;
 }
 
 /***
@@ -199,6 +371,8 @@ static int conntrack_new_nat(int ipver, ConnTrack* track, PoolId id, Conn* conn)
 
     for(p = track->last_nat_port + 1; p != track->last_nat_port; ++p)
     {
+        uint32_t hash;
+
         if(p == 0)
         {
             continue;
@@ -206,7 +380,7 @@ static int conntrack_new_nat(int ipver, ConnTrack* track, PoolId id, Conn* conn)
 
         PoolId id_n = POOLID_NULL;
         Conn* conn_n = NULL;
-        int ret = conntrack_nat_search(ipver, track, &id_n, &conn_n, addr, p);
+        int ret = conntrack_nat_search(ipver, track, &id_n, &conn_n, addr, p, &hash);
         if(ret == 0)
         {
             continue;
@@ -219,11 +393,7 @@ static int conntrack_new_nat(int ipver, ConnTrack* track, PoolId id, Conn* conn)
 
 
         //Usable port
-        //TODO: Duplicated hash
-        uint32_t hash = conntrack_nat_hash(ipver, track, addr, p);
-        conn->ht_nat_prev = POOLID_NULL;
-        conn->ht_nat_next = track->ht_nat[hash];
-        track->ht_nat[hash] = id;
+        conntrack_add_to_nat(ipver, track, id, conn, &hash);
 
         if(ipver == 4)
         {
@@ -340,24 +510,7 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
 
     if(last_free != POOLID_NULL)
     {
-        //Remove from connection hash table
-        if(last_free_conn->ht_conn_prev == POOLID_NULL)
-        {
-            track->ht_conn[hash] = last_free_conn->ht_conn_next;
-        }
-        else
-        {
-            if(last_free_conn->ht_conn_next != POOLID_NULL)
-            {
-                Conn* next = pool_ref(track->pool, last_free_conn->ht_conn_next);
-                next->ht_conn_prev = last_free_conn->ht_conn_prev;
-            }
-            Conn* prev = pool_ref(track->pool, last_free_conn->ht_conn_prev);
-            prev->ht_conn_next = last_free_conn->ht_conn_next;
-        }
-
-        last_free_conn->ht_conn_next = last_free;
-        last_free_conn->ht_conn_prev = last_free;
+        conntrack_remove_from_conn(ipver, track, last_free, last_free_conn, &hash);
     }
 
     //Create new
@@ -376,26 +529,7 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
                 {
                     if(conn->ht_conn_next != id)
                     {
-                        //Remove it from connection hash table
-                        if(conn->ht_conn_prev == POOLID_NULL)
-                        {
-                            //First in the list
-                            uint32_t hash = hashword((void*)conn + sizeof(Conn), key_len, track->ht_iv) & hashmask(track->ht_size_bits);
-                            track->ht_conn[hash] = conn->ht_conn_next;
-                        }
-                        else
-                        {
-                            if(conn->ht_conn_next != POOLID_NULL)
-                            {
-                                Conn* next = pool_ref(track->pool, conn->ht_conn_next);
-                                next->ht_conn_prev = conn->ht_conn_prev;
-                            }
-                            Conn* prev = pool_ref(track->pool, conn->ht_conn_prev);
-                            prev->ht_conn_next = conn->ht_conn_next;
-                        }
-
-                        conn->ht_conn_next = id;
-                        conn->ht_conn_prev = id;
+                        conntrack_remove_from_conn(ipver, track, id, conn, NULL);
                     }
 
                     last_free = id;
@@ -431,29 +565,7 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
         last_free_conn->timeout_prev = last_free;
     }
 
-    //Remove from NAT hash table
-    if(last_free_conn->ht_nat_next != last_free)
-    {
-        if(last_free_conn->ht_nat_prev == POOLID_NULL)
-        {
-            //First in the list
-            uint32_t hash = conntrack_nat_hash_conn(ipver, track, last_free_conn);
-            track->ht_nat[hash] = last_free_conn->ht_nat_next;
-        }
-        else
-        {
-            if(last_free_conn->ht_nat_next != POOLID_NULL)
-            {
-                Conn* next = pool_ref(track->pool, last_free_conn->ht_nat_next);
-                next->ht_nat_prev = last_free_conn->ht_nat_prev;
-            }
-            Conn* prev = pool_ref(track->pool, last_free_conn->ht_nat_prev);
-            prev->ht_nat_next = last_free_conn->ht_nat_next;
-        }
-
-        last_free_conn->ht_nat_prev = last_free;
-        last_free_conn->ht_nat_next = last_free;
-    }
+    conntrack_remove_from_nat(ipver, track, last_free, last_free_conn, NULL);
 
     conntrack_remove_from_timeout(track, last_free, last_free_conn);
 
@@ -494,12 +606,8 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
         return ret;
     }
 
-    //Insert into connection hash table
-    last_free_conn->ht_conn_prev = POOLID_NULL;
-    last_free_conn->ht_conn_next = track->ht_conn[hash];
-    track->ht_conn[hash] = last_free;
+    conntrack_add_to_conn(ipver, track, last_free, last_free_conn, &hash);
 
-    //Touch the newly created connection
     conntrack_touch(track, last_free, last_free_conn, CONN_ST_DFT);
 
     *id_out = last_free;
@@ -519,19 +627,16 @@ int conntrack_conn_search6(ConnTrack* track, PoolId* id, Conn6** conn, uint8_t s
 
 int conntrack_touch(ConnTrack* track, PoolId id, Conn* conn, ConnState state)
 {
-    conntrack_remove_from_timeout(track, id, conn);
-    conn->last_active = track->time();
-    conn->state = state;
-    conntrack_add_to_timeout(track, id, conn);
+    conntrack_touch_now(track, id, conn, state, track->time());
     return 0;
 }
 
 int conntrack_nat_search4(ConnTrack* track, PoolId* id, Conn4** conn, uint8_t addr[4], uint16_t port)
 {
-    return conntrack_nat_search(4, track, id, (Conn**)conn, addr, port);
+    return conntrack_nat_search(4, track, id, (Conn**)conn, addr, port, NULL);
 }
 
 int conntrack_nat_search6(ConnTrack* track, PoolId* id, Conn6** conn, uint8_t addr[16], uint16_t port)
 {
-    return conntrack_nat_search(6, track, id, (Conn**)conn, addr, port);
+    return conntrack_nat_search(6, track, id, (Conn**)conn, addr, port, NULL);
 }
