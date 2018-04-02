@@ -94,20 +94,18 @@ static uint16_t tcp6_hdr_checksum(uint8_t src[4], uint8_t dst[4], TCPHeader* hdr
     return tcp_hdr_checksum((uint8_t*)&fake_hdr, sizeof(fake_hdr), hdr, data_len);
 }
 
-int tcp4_hdr_calc_checksum(uint8_t src[4], uint8_t dst[4], TCPHeader* hdr, uint16_t data_len)
+void tcp4_hdr_calc_checksum(uint8_t src[4], uint8_t dst[4], TCPHeader* hdr, uint16_t data_len)
 {
     hdr->checksum = 0;
     uint16_t cs = tcp4_hdr_checksum(src, dst, hdr, data_len);
     hdr->checksum = cs;
-    return 0;
 }
 
-int tcp6_hdr_calc_checksum(uint8_t src[16], uint8_t dst[16], TCPHeader* hdr, uint32_t data_len)
+void tcp6_hdr_calc_checksum(uint8_t src[16], uint8_t dst[16], TCPHeader* hdr, uint32_t data_len)
 {
     hdr->checksum = 0;
     uint16_t cs = tcp6_hdr_checksum(src, dst, hdr, data_len);
     hdr->checksum = cs;
-    return 0;
 }
 
 int tcp4_hdr_check_checksum(uint8_t src[4], uint8_t dst[4], TCPHeader* hdr, uint16_t data_len)

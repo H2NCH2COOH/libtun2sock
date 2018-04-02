@@ -395,7 +395,7 @@ static int conntrack_new_nat(int ipver, ConnTrack* track, PoolId id, Conn* conn)
         }
         else if(ret != TUN2SOCK_E_NONAT)
         {
-            //Error
+            //Some error
             return ret;
         }
 
@@ -616,7 +616,8 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
 
     conntrack_add_to_conn(ipver, track, last_free, last_free_conn, &hash);
 
-    conntrack_touch(track, last_free, last_free_conn, CONN_ST_DFT);
+    //Will not add newly created connection to timeout lists
+    //The caller should call conntrack_touch() after this function returns which will add this to a timeout list
 
     *id_out = last_free;
     *conn_out = last_free_conn;

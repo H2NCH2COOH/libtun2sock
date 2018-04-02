@@ -177,17 +177,14 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt);
 /***
  * Get the original destination port using the NAT address
  * !NOTE: The port returned is in network order
- * Choose the right function based on protocol
  * @param t2s       The Tun2Sock struct
  * @param addr      The IP address
  * @param port      The port
  * @return          >0 The original port
  *                  <0 Error number
  */
-int_fast32_t tun2sock_get_original_port_udp4(Tun2Sock* t2s, uint8_t addr[4], uint16_t port);
-int_fast32_t tun2sock_get_original_port_tcp4(Tun2Sock* t2s, uint8_t addr[4], uint16_t port);
-int_fast32_t tun2sock_get_original_port_udp6(Tun2Sock* t2s, uint8_t addr[16], uint16_t port);
-int_fast32_t tun2sock_get_original_port_tcp6(Tun2Sock* t2s, uint8_t addr[16], uint16_t port);
+int_fast32_t tun2sock_get_original_port4(Tun2Sock* t2s, uint8_t addr[4], uint16_t port);
+int_fast32_t tun2sock_get_original_port6(Tun2Sock* t2s, uint8_t addr[16], uint16_t port);
 
 /***
  * Add a entry to NAT table
@@ -204,9 +201,7 @@ int_fast32_t tun2sock_get_original_port_tcp6(Tun2Sock* t2s, uint8_t addr[16], ui
  * @return          >0 The allocated remote port
  *                  <0 Error number
  */
-int_fast32_t tun2sock_add_nat_udp4(Tun2Sock* t2s, uint8_t raddr[4], uint16_t rport, uint8_t laddr[4], uint16_t lport);
-int_fast32_t tun2sock_add_nat_tcp4(Tun2Sock* t2s, uint8_t raddr[4], uint16_t rport, uint8_t laddr[4], uint16_t lport);
-int_fast32_t tun2sock_add_nat_udp6(Tun2Sock* t2s, uint8_t raddr[16], uint16_t rport, uint8_t laddr[16], uint16_t lport);
-int_fast32_t tun2sock_add_nat_tcp6(Tun2Sock* t2s, uint8_t raddr[16], uint16_t rport, uint8_t laddr[16], uint16_t lport);
+int_fast32_t tun2sock_add_nat4(Tun2Sock* t2s, uint8_t raddr[4], uint16_t rport, uint8_t laddr[4], uint16_t lport);
+int_fast32_t tun2sock_add_nat6(Tun2Sock* t2s, uint8_t raddr[16], uint16_t rport, uint8_t laddr[16], uint16_t lport);
 
 #endif /* _TUN2SOCK_H_ */

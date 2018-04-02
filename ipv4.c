@@ -78,7 +78,7 @@ const char* ipv4_ntoa(IPv4Addr* addr)
     return buff;
 }
 
-int ipv4_hdr_calc_checksum(IPv4Header* hdr)
+void ipv4_hdr_calc_checksum(IPv4Header* hdr)
 {
     uint32_t sum = 0;
     hdr->checksum = 0;
@@ -97,8 +97,6 @@ int ipv4_hdr_calc_checksum(IPv4Header* hdr)
     }
 
     hdr->checksum = ~sum;
-
-    return 0;
 }
 
 int ipv4_hdr_check_checksum(IPv4Header* hdr)

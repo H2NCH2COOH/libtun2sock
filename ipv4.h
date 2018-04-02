@@ -74,9 +74,8 @@ const char* ipv4_ntoa(IPv4Addr* addr);
 /***
  * Calculate and set the checksum of IPv4 header
  * @param hdr Pointer to a IPv4Header
- * @return 0 for success, -1 for failure
  */
-int ipv4_hdr_calc_checksum(IPv4Header* hdr);
+void ipv4_hdr_calc_checksum(IPv4Header* hdr);
 
 /***
  * Check the checksum of IPv4 header

@@ -112,7 +112,7 @@ void conntrack_destroy(ConnTrack* track);
 /***
  * Search for a connection using source & destination address
  * And get a optional new connection
- * The newly created connection is already touched (No need to call conntrack_touch())
+ * You should ALWAYS touch the found connection
  * @param track         The connection track
  * @param id            The id of the found connection
  * @param conn          The found connection
@@ -122,7 +122,13 @@ void conntrack_destroy(ConnTrack* track);
  * @param dport         The destination port
  * @param flags         Flags CONNTRACK_CONN_SEARCH_FLAGS_* ORed
  * @return              0  Success
- *                      <0 Error number
+ *                      TUN2SOCK_E_INVAL        Invalid parameters
+ *                      TUN2SOCK_E_EXTCONN      Connection already exists
+ *                      TUN2SOCK_E_NOCONN       Connection not found
+ *                      TUN2SOCK_E_MAXCONN      Reached maximum connections
+ *                      TUN2SOCK_E_NOMEM        Not enough memory
+ *                      TUN2SOCK_E_INTERNAL     Unknown error from pool
+ *                      TUN2SOCK_E_MAXNAT       No usable NAT port for destination
  */
 #define CONNTRACK_CONN_SEARCH_FLAG_CREAT       1 //Create a new connection if no existing one is found
 #define CONNTRACK_CONN_SEARCH_FLAG_EXCL        2 //Must be used with CREAT, fail when existing one is found
@@ -134,9 +140,9 @@ int conntrack_conn_search6(ConnTrack* track, PoolId* id, Conn6** conn, uint8_t s
  * @param track         The connection track
  * @param id            The id of the connection
  * @param conn          The connection
- * @param state         The new connection state (Cannot be CONN_ST_FREE)
- * @return              0  Success
- *                      <0 Error number
+ * @param state         The new connection state
+ *                      Set state as ST_CONN_FREE to free the connection
+ * @return              0 Success
  */
 int conntrack_touch(ConnTrack* track, PoolId id, Conn* conn, ConnState state);
 
@@ -147,8 +153,8 @@ int conntrack_touch(ConnTrack* track, PoolId id, Conn* conn, ConnState state);
  * @param conn          The found connection
  * @param addr          The IP address
  * @param port          The NAT port
- * @return              0  Success
- *                      <0 Error number
+ * @return              0 Success
+ *                      TUN2SOCK_E_NONAT        NAT not found
  */
 int conntrack_nat_search4(ConnTrack* track, PoolId* id, Conn4** conn, uint8_t addr[4], uint16_t port);
 int conntrack_nat_search6(ConnTrack* track, PoolId* id, Conn6** conn, uint8_t addr[16], uint16_t port);

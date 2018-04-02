@@ -88,7 +88,7 @@ static uint16_t udp6_hdr_checksum(uint8_t src[4], uint8_t dst[4], UDPHeader* hdr
     return udp_hdr_checksum((uint8_t*)&fake_hdr, sizeof(fake_hdr), hdr);
 }
 
-int udp4_hdr_calc_checksum(uint8_t src[4], uint8_t dst[4], UDPHeader* hdr)
+void udp4_hdr_calc_checksum(uint8_t src[4], uint8_t dst[4], UDPHeader* hdr)
 {
     hdr->checksum = 0;
     uint16_t cs = udp4_hdr_checksum(src, dst, hdr);
@@ -97,10 +97,9 @@ int udp4_hdr_calc_checksum(uint8_t src[4], uint8_t dst[4], UDPHeader* hdr)
         cs = 0xFFFF;
     }
     hdr->checksum = cs;
-    return 0;
 }
 
-int udp6_hdr_calc_checksum(uint8_t src[16], uint8_t dst[16], UDPHeader* hdr)
+void udp6_hdr_calc_checksum(uint8_t src[16], uint8_t dst[16], UDPHeader* hdr)
 {
     hdr->checksum = 0;
     uint16_t cs = udp6_hdr_checksum(src, dst, hdr);
@@ -109,7 +108,6 @@ int udp6_hdr_calc_checksum(uint8_t src[16], uint8_t dst[16], UDPHeader* hdr)
         cs = 0xFFFF;
     }
     hdr->checksum = cs;
-    return 0;
 }
 
 int udp4_hdr_check_checksum(uint8_t src[4], uint8_t dst[4], UDPHeader* hdr)

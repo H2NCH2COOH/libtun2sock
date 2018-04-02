@@ -23,10 +23,9 @@ typedef struct
  * @param dst The destination IPv4/6 address
  * @param hdr Pointer to a UDPHeader and following data
  * @param data_len The length of UDP data
- * @return 0 for success, -1 for failure
  */
-int udp4_hdr_calc_checksum(uint8_t src[4], uint8_t dst[4], UDPHeader* hdr);
-int udp6_hdr_calc_checksum(uint8_t src[16], uint8_t dst[16], UDPHeader* hdr);
+void udp4_hdr_calc_checksum(uint8_t src[4], uint8_t dst[4], UDPHeader* hdr);
+void udp6_hdr_calc_checksum(uint8_t src[16], uint8_t dst[16], UDPHeader* hdr);
 
 /***
  * Check the checksum of UDP header

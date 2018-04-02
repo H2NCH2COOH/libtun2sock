@@ -50,7 +50,10 @@ typedef struct
     uint8_t  next_hdr;
     uint8_t  hdr_ext_len;
     uint16_t _s1;
+    uint32_t _l1;
 } IPv6HeaderExtBase;
+
+#define ipv6_hdr_ext_len(ext)               ((ext)->hdr_ext_len * 8 + 8)
 
 /***
  * "xxxx:xxxx:xxxx::xxxx:xxxx:xxxx" -> IPv6Addr
