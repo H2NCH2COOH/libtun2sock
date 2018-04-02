@@ -14,7 +14,7 @@ typedef struct
     uint8_t  _b1;
     uint8_t  _b2;
     uint8_t  _b3;
-    uint16_t len;
+    uint8_t  len[2];
     uint8_t  next_hdr;
     uint8_t  hop_limit;
     IPv6Addr src;
@@ -24,6 +24,12 @@ typedef struct
 #define ipv6_hdr_version(hdr)               (((hdr)->_b0 & 0xF0) >> 4)
 #define ipv6_hdr_version_set(hdr, v)        do{ \
         (hdr)->_b0 = ((hdr)->_b0 & 0x0F) | (((v) & 0x0F) << 4); \
+    }while(0)
+
+#define ipv6_hdr_len(hdr)               (((hdr)->len[0] << 8) | (hdr)->len[1])
+#define ipv6_hdr_len_set(hdr, l)        do{ \
+        (hdr)->len[0] = ((l) & 0xFF00) >> 8; \
+        (hdr)->len[1] = (l) & 0xFF; \
     }while(0)
 
 #define ipv6_hdr_traffic_class(hdr)         ((((hdr)->_b0 & 0x0F) << 4) | (((hdr)->_b1 & 0xF0) >> 4))

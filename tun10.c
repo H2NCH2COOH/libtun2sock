@@ -87,7 +87,7 @@ int main(int argc, char** argv)
         void* ptr = (void*)buff;
         IPv4Header* iphdr = ptr;
         int iphdr_len = 4 * ipv4_hdr_ihl(iphdr);
-        printf("IPv4: version: %u ihl: %u len: %u protocol: %u\n", ipv4_hdr_version(iphdr), ipv4_hdr_ihl(iphdr), ntohs(iphdr->len), iphdr->protocol);
+        printf("IPv4: version: %u ihl: %u len: %u protocol: %u\n", ipv4_hdr_version(iphdr), ipv4_hdr_ihl(iphdr), ipv4_hdr_len(iphdr), iphdr->protocol);
 
         if(ipv4_hdr_check_checksum(iphdr) != 0)
         {
@@ -130,12 +130,12 @@ int main(int argc, char** argv)
                 printf("UDP: sport: %u dport: %u len: %u checksum: %x\n",
                     ntohs(udphdr->sport),
                     ntohs(udphdr->dport),
-                    ntohs(udphdr->len),
+                    udp_hdr_len(udphdr),
                     ntohs(udphdr->checksum)
                 );
                 data = ptr + iphdr_len + sizeof(UDPHeader);
                 data_len = ret - iphdr_len - sizeof(UDPHeader);
-                if(udp4_hdr_check_checksum(iphdr->src.b, iphdr->dst.b, udphdr, data_len) != 0)
+                if(udp4_hdr_check_checksum(iphdr->src.b, iphdr->dst.b, udphdr) != 0)
                 {
                     printf("Bad UDP checksum\n");
                     return 1;

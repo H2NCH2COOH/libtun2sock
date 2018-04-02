@@ -12,7 +12,7 @@ typedef struct
 {
     uint8_t  _b0;
     uint8_t  _b1;
-    uint16_t len;
+    uint8_t  len[2];
     uint16_t id;
     uint8_t  _b6;
     uint8_t  _b7;
@@ -26,6 +26,12 @@ typedef struct
 #define ipv4_hdr_version(hdr)           (((hdr)->_b0 & 0xF0) >> 4)
 #define ipv4_hdr_version_set(hdr, v)    do{ \
         (hdr)->_b0 = ((hdr)->_b0 & 0x0F) | (((v) & 0x0F) << 4); \
+    }while(0)
+
+#define ipv4_hdr_len(hdr)               (((hdr)->len[0] << 8) | (hdr)->len[1])
+#define ipv4_hdr_len_set(hdr, l)        do{ \
+        (hdr)->len[0] = ((l) & 0xFF00) >> 8; \
+        (hdr)->len[1] = (l) & 0xFF; \
     }while(0)
 
 #define ipv4_hdr_ihl(hdr)               ((hdr)->_b0 & 0x0F)
