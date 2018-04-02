@@ -26,12 +26,6 @@ typedef struct
         (hdr)->_b0 = ((hdr)->_b0 & 0x0F) | (((v) & 0x0F) << 4); \
     }while(0)
 
-#define ipv6_hdr_len(hdr)               (((hdr)->len[0] << 8) | (hdr)->len[1])
-#define ipv6_hdr_len_set(hdr, l)        do{ \
-        (hdr)->len[0] = ((l) & 0xFF00) >> 8; \
-        (hdr)->len[1] = (l) & 0xFF; \
-    }while(0)
-
 #define ipv6_hdr_traffic_class(hdr)         ((((hdr)->_b0 & 0x0F) << 4) | (((hdr)->_b1 & 0xF0) >> 4))
 #define ipv6_hdr_traffic_class_set(hdr, v)  do{ \
         (hdr)->_b0 = ((hdr)->_b0 & 0xF0) | (((v) & 0xF0) >> 4); \
@@ -43,6 +37,12 @@ typedef struct
         (hdr)->_b1 = ((hdr)->_b1 & 0xF0) | (((v) & 0xF0000) >> 16); \
         (hdr)->_b2 = ((v) & 0xFF00) >> 8; \
         (hdr)->_b3 = (v) & 0xFF; \
+    }while(0)
+
+#define ipv6_hdr_len(hdr)               (((hdr)->len[0] << 8) | (hdr)->len[1])
+#define ipv6_hdr_len_set(hdr, l)        do{ \
+        (hdr)->len[0] = ((l) & 0xFF00) >> 8; \
+        (hdr)->len[1] = (l) & 0xFF; \
     }while(0)
 
 typedef struct
