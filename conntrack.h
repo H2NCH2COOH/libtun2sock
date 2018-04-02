@@ -60,6 +60,7 @@ typedef struct
 {
     int ipver;
 
+    void* (*realloc)(void*, size_t);
     Pool* pool;
 
     int ht_size_bits;
@@ -101,6 +102,12 @@ typedef struct
 int conntrack_init(ConnTrack* track, int ipver, void* (*realloc)(void*, size_t),
     int conn_max_size_bits, int conn_grow_step_bits,
     uint32_t (*time)(), uint32_t timeouts[CONN_ST_SIZE]);
+
+/***
+ * Destroy and a connection track
+ * @param track                 The connection track to destroy
+ */
+void conntrack_destroy(ConnTrack* track);
 
 /***
  * Search for a connection using source & destination address

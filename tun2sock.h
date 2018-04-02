@@ -26,16 +26,17 @@
  *
  *  Local[A1:P1] --socket-> (Remote[A2:P2]) --route-> TUN --program-> Tun2Sock[A1:P1:A2:P2]  --+
  *                                                                                             |
- * Target[A0:P0] <-socket--      ([A2:P2']) <-route-- TUN <-program-- Tun2Sock[A2:P2':A0:P0] <-+
+ * Target[A0:P0] <-socket--   (NAT[A2:P2']) <-route-- TUN <-program-- Tun2Sock[A2:P2':A0:P0] <-+
  *
  * [A2:P2'] -> Tun2Sock -> [A2:P2]
  * ...
  *
- * Target[A0:P0] --socket->      ([A2:P2']) --route-> TUN --program-> Tun2Sock[A0:P0:A2:P2'] --+
+ * Target[A0:P0] --socket->   (NAT[A2:P2']) --route-> TUN --program-> Tun2Sock[A0:P0:A2:P2'] --+
  *                                                                                             |
  *  Local[A1:P1] <-socket-- (Remote[A2:P2]) <-route-- TUN <-program-- Tun2Sock[A2:P2:A1:P1]  <-+
  */
 
+#include <stddef.h>
 #include <stdint.h>
 
 /***
@@ -71,7 +72,7 @@ struct Tun2Sock_s
     /***
      * stdlib realloc like
      */
-    void* (*realloc)(void* ptr, int size);
+    void* (*realloc)(void* ptr, size_t size);
 
     /***
      * The number of (milli)seconds elapsed from a monotonic clock
@@ -108,7 +109,7 @@ struct Tun2Sock_s
 
     /***
      * The bits of maximum connections this lib can handle simutaneously
-     * A value of N means that (2 ** N) number of connections
+     * A value of N means (2 ** N) number of connections
      */
     int max_connections_bits;
 
@@ -142,6 +143,16 @@ void tun2sock_cleanup(Tun2Sock* t2s);
  * @return          The string
  */
 const char* tun2sock_strerr(int err);
+
+/***
+ * Library version
+ * MACRO and function to get library version
+ * @param major     The major version number output
+ * @param minor     The minor version number output
+ */
+void tun2sock_get_version(int* major, int* minor);
+#define TUN2SOCK_VERSION_MAJOR  0
+#define TUN2SOCK_VERSION_MINOR  1
 
 /***
  * Input a packet

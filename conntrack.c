@@ -23,6 +23,8 @@ int conntrack_init(ConnTrack* track, int ipver, void* (*realloc)(void*, size_t),
 
     track->ipver = ipver;
 
+    track->realloc = realloc;
+
     track->pool = pool_create(realloc, (ipver == 4)? sizeof(Conn4) : sizeof(Conn6), 1 << conn_max_size_bits, 1 << conn_grow_step_bits);
     if(track->pool == NULL)
     {
@@ -69,6 +71,12 @@ int conntrack_init(ConnTrack* track, int ipver, void* (*realloc)(void*, size_t),
     track->last_nat_port = 0;
 
     return 0;
+}
+
+void conntrack_destroy(ConnTrack* track)
+{
+    track->realloc(track->ht_conn, 0);
+    pool_delete(track->pool);
 }
 
 #define conn_timeout(c, t) ((c)->last_active + (t)->timeouts[(c)->state])
