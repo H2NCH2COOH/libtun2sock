@@ -6,6 +6,7 @@
 #include "ipv6.h"
 #include "tcp.h"
 #include "udp.h"
+#include "icmp.h"
 
 typedef struct
 {
@@ -202,15 +203,122 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
         case TUN2SOCK_E_DRPPKT:
         case TUN2SOCK_E_MAXCONN:
         case TUN2SOCK_E_MAXNAT:
+            //Try to generate error response
             break;
         default:
             return err;
     }
 
+    IPv4Header ipv4hdr_out;
+    IPv6Header ipv6hdr_out;
+
+    size_t pkt_len = 0;
+    uint8_t* saddr;
+    uint8_t* daddr;
+    uint8_t* proto;
+
+    if(ipver == 4)
+    {
+        IPv4Header* ipv4hdr = l3hdr;
+
+        ipv4_hdr_version_set(&ipv4hdr_out, 4);
+        ipv4_hdr_ihl_set(&ipv4hdr_out, 5);
+        ipv4_hdr_dscp_set(&ipv4hdr_out, 0);
+        ipv4_hdr_ecn_set(&ipv4hdr_out, 0);
+
+        //Set length later
+
+        //XXX: I don't really know how to handle this field
+        ipv4hdr_out.id = ipv4hdr->id;
+
+        ipv4_hdr_flags_set(&ipv4hdr_out, 0);
+        ipv4_hdr_frag_offset_set(&ipv4hdr_out, 0);
+
+        ipv4hdr_out.ttl = 64;
+
+        //protocol will be set later
+        proto = &ipv4hdr_out.protocol;
+
+        //Calc checksum later
+
+        memcpy(ipv4hdr_out.src.b, ipv4hdr->dst.b, 4);
+        memcpy(ipv4hdr_out.dst.b, ipv4hdr->src.b, 4);
+
+        pkt_len += sizeof(IPv4Header);
+
+        saddr = ipv4hdr_out.src.b;
+        daddr = ipv4hdr_out.dst.b;
+    }
+    else
+    {
+        IPv6Header* ipv6hdr = l3hdr;
+
+        ipv6_hdr_version_set(&ipv6hdr_out, 6);
+        ipv6_hdr_traffic_class_set(&ipv6hdr_out, 0);
+        ipv6_hdr_flow_label_set(&ipv6hdr_out, 0);
+
+        //Set length later
+
+        //protocol will be set later
+        proto = &ipv6hdr_out.next_hdr;
+
+        ipv6hdr_out.hop_limit = 64;
+
+        memcpy(ipv6hdr_out.src.b, ipv6hdr->dst.b, 16);
+        memcpy(ipv6hdr_out.dst.b, ipv6hdr->src.b, 16);
+
+        pkt_len += sizeof(IPv6Header);
+
+        saddr = ipv6hdr_out.src.b;
+        daddr = ipv6hdr_out.dst.b;
+    }
+
     if(l4proto == PROTO_TCP && !(t2s->flags & TUN2SOCK_FLAG_NO_TCP_RST_ERR_RSP))
     {
-        //Generate TCP RST
-        //CURSOR
+        TCPHeader* tcphdr = l4hdr;
+        TCPHeader tcphdr_out;
+
+        tcphdr_out.sport = tcphdr->dport;
+        tcphdr_out.dport = tcphdr->sport;
+
+        //XXX: This should work
+        tcphdr_out.seq = 0;
+
+        tcphdr_out.ack = 0;
+
+        tcp_hdr_flgas_set(&tcphdr_out, tcp_hdr_flags_RST);
+
+        tcphdr_out.win = 0;
+
+        tcphdr_out.urgent_ptr = 0;
+
+        pkt_len += sizeof(TCPHeader);
+
+        //Fill protocol field in IP header
+        *proto = PROTO_TCP;
+
+        void* ptr = l3hdr;
+        if(ipver == 4)
+        {
+            ipv4_hdr_len_set(&ipv4hdr_out, pkt_len);
+            ipv4_hdr_calc_checksum(&ipv4hdr_out);
+            memcpy(ptr, &ipv4hdr_out, sizeof(IPv4Header));
+            ptr += sizeof(IPv4Header);
+
+            tcp4_hdr_calc_checksum(saddr, daddr, &tcphdr_out, 0);
+        }
+        else
+        {
+            ipv6_hdr_len_set(&ipv6hdr_out, pkt_len);
+            memcpy(ptr, &ipv6hdr_out, sizeof(IPv6Header));
+            ptr += sizeof(IPv6Header);
+
+            tcp6_hdr_calc_checksum(saddr, daddr, &tcphdr_out, 0);
+        }
+
+        memcpy(ptr, &tcphdr, sizeof(TCPHeader));
+
+        return (int)pkt_len;
     }
     else if(!(t2s->flags & TUN2SOCK_FLAG_NO_ICMP_ERR_RSP))
     {
@@ -219,10 +327,45 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
     else
     {
         //Generate ICMP destination unreachable
-        //CURSOR
-    }
+        void* ptr = l3hdr;
+        size_t data_len = l4hdr - l3hdr + 8;
+        memmove(ptr + pkt_len + sizeof(ICMPHeader), l3hdr, data_len); //pkt_len should be the IP header length
+        pkt_len += data_len;
 
-    return 0;
+        ICMPHeader icmphdr_out;
+        if(ipver == 4)
+        {
+            icmphdr_out.type = 3;
+            icmphdr_out.code = 0;
+            icmphdr_out.zero = 0;
+            icmp4_hdr_calc_checksum(&icmphdr_out, data_len);
+
+            pkt_len += sizeof(ICMPHeader);
+
+            *proto = PROTO_ICMP;
+            ipv4_hdr_len_set(&ipv4hdr_out, pkt_len);
+            ipv4_hdr_calc_checksum(&ipv4hdr_out);
+            memcpy(ptr, &ipv4hdr_out, sizeof(IPv4Header));
+            ptr += sizeof(IPv4Header);
+        }
+        else
+        {
+            icmphdr_out.type = 1;
+            icmphdr_out.code = 0;
+            icmphdr_out.zero = 0;
+            icmp6_hdr_calc_checksum(saddr, daddr, &icmphdr_out, data_len);
+
+            pkt_len += sizeof(ICMPHeader);
+
+            *proto = PROTO_IPv6_ICMP;
+            ipv6_hdr_len_set(&ipv6hdr_out, pkt_len);
+            memcpy(ptr, &ipv6hdr_out, sizeof(IPv6Header));
+            ptr += sizeof(IPv6Header);
+        }
+        memcpy(ptr, &icmphdr_out, sizeof(ICMPHeader));
+
+        return (int)pkt_len;
+    }
 }
 
 int tun2sock_input(Tun2Sock* t2s, char* pkt)
@@ -364,7 +507,7 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
         {
             if(sport != t2s->target_port4)
             {
-                return TUN2SOCK_E_BADPKT;
+                return tun2sock_error_resp(t2s, TUN2SOCK_E_DRPPKT, 4, pkt, protocol, l4hdr);
             }
 
             int ret = conntrack_nat_search4(ctx->track4, &id, &conn4, daddr, dport);
@@ -381,6 +524,11 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
         }
         else
         {
+            if(sport != t2s->target_port6)
+            {
+                return tun2sock_error_resp(t2s, TUN2SOCK_E_DRPPKT, 6, pkt, protocol, l4hdr);
+            }
+
             int ret = conntrack_conn_search4(ctx->track4, &id, &conn4, saddr, sport, daddr, dport, CONNTRACK_CONN_SEARCH_FLAG_CREAT);
             if(ret != 0)
             {
@@ -447,7 +595,7 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
             break;
         case PROTO_UDP:
             udphdr->sport = sport;
-            tcphdr->dport = dport;
+            udphdr->dport = dport;
             if(ipver == 4)
             {
                 udp4_hdr_calc_checksum(saddr, daddr, udphdr);
@@ -462,39 +610,96 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
     if(ipver == 4)
     {
         ipv4_hdr_calc_checksum(ipv4hdr);
+
+        conntrack_touch(ctx->track4, id, conn, CONN_ST_DFT);
+    }
+    else
+    {
+        conntrack_touch(ctx->track6, id, conn, CONN_ST_DFT);
     }
 
     return 0;
 }
 
-static int_fast32_t tun2sock_get_original_port(int ipver, Tun2Sock* t2s, uint8_t* addr, uint16_t port)
-{
-    //CURSOR
-    return 0;
-}
-
 int_fast32_t tun2sock_get_original_port4(Tun2Sock* t2s, uint8_t addr[4], uint16_t port)
 {
-    return tun2sock_get_original_port(4, t2s, addr, port);
+    if(t2s == NULL || t2s->internal == NULL || addr == NULL || port == 0)
+    {
+        return TUN2SOCK_E_INVAL;
+    }
+
+    Tun2SockCtx* ctx = t2s->internal;
+
+    PoolId id;
+    Conn4* conn4;
+    int ret = conntrack_nat_search4(ctx->track4, &id, &conn4, addr, port);
+    if(ret != 0)
+    {
+        return ret;
+    }
+
+    return conn4->ext_port;
 }
 
 int_fast32_t tun2sock_get_original_port6(Tun2Sock* t2s, uint8_t addr[16], uint16_t port)
 {
-    return tun2sock_get_original_port(6, t2s, addr, port);
-}
+    if(t2s == NULL || t2s->internal == NULL || addr == NULL || port == 0)
+    {
+        return TUN2SOCK_E_INVAL;
+    }
 
-static int_fast32_t tun2sock_add_nat(int ipver, Tun2Sock* t2s, uint8_t* raddr, uint16_t rport, uint8_t* laddr, uint16_t lport)
-{
-    //CURSOR
-    return 0;
+    Tun2SockCtx* ctx = t2s->internal;
+
+    PoolId id;
+    Conn6* conn6;
+    int ret = conntrack_nat_search6(ctx->track6, &id, &conn6, addr, port);
+    if(ret != 0)
+    {
+        return ret;
+    }
+
+    (void)id;
+    return conn6->ext_port;
 }
 
 int_fast32_t tun2sock_add_nat4(Tun2Sock* t2s, uint8_t raddr[4], uint16_t rport, uint8_t laddr[4], uint16_t lport)
 {
-    return tun2sock_add_nat(4, t2s, raddr, rport, laddr, lport);
+    if(t2s == NULL || t2s->internal == NULL || raddr == NULL || rport == 0 || laddr == NULL || lport == 0)
+    {
+        return TUN2SOCK_E_INVAL;
+    }
+
+    Tun2SockCtx* ctx = t2s->internal;
+
+    PoolId id;
+    Conn4* conn4;
+    int ret = conntrack_conn_search4(ctx->track4, &id, &conn4, laddr, lport, raddr, rport, CONNTRACK_CONN_SEARCH_FLAG_CREAT | CONNTRACK_CONN_SEARCH_FLAG_EXCL);
+    if(ret != 0)
+    {
+        return ret;
+    }
+
+    conntrack_touch(ctx->track4, id, (Conn*)conn4, CONN_ST_DFT);
+    return 0;
 }
 
 int_fast32_t tun2sock_add_nat6(Tun2Sock* t2s, uint8_t raddr[16], uint16_t rport, uint8_t laddr[16], uint16_t lport)
 {
-    return tun2sock_add_nat(6, t2s, raddr, rport, laddr, lport);
+    if(t2s == NULL || t2s->internal == NULL || raddr == NULL || rport == 0 || laddr == NULL || lport == 0)
+    {
+        return TUN2SOCK_E_INVAL;
+    }
+
+    Tun2SockCtx* ctx = t2s->internal;
+
+    PoolId id;
+    Conn6* conn6;
+    int ret = conntrack_conn_search6(ctx->track6, &id, &conn6, laddr, lport, raddr, rport, CONNTRACK_CONN_SEARCH_FLAG_CREAT | CONNTRACK_CONN_SEARCH_FLAG_EXCL);
+    if(ret != 0)
+    {
+        return ret;
+    }
+
+    conntrack_touch(ctx->track6, id, (Conn*)conn6, CONN_ST_DFT);
+    return 0;
 }

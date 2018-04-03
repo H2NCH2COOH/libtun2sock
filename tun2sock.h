@@ -145,12 +145,15 @@ void tun2sock_cleanup(Tun2Sock* t2s);
 const char* tun2sock_strerr(int err);
 
 /***
- * Library version
- * MACRO and function to get library version
+ * Get library version during runtime
  * @param major     The major version number output
  * @param minor     The minor version number output
  */
 void tun2sock_get_version(int* major, int* minor);
+
+/***
+ * Get library version during compileing
+ */
 #define TUN2SOCK_VERSION_MAJOR  0
 #define TUN2SOCK_VERSION_MINOR  1
 
@@ -160,19 +163,16 @@ void tun2sock_get_version(int* major, int* minor);
  * This function will decide if the packet should be dropped or modified and send back to the TUN
  * When a NAT is found/created, this function will modify the headers of the packet
  * When an error occurred, this function may rewrite a error response into the buffer
- * The buffer containing the packet should be at lest large enough for an ICMP(v6) destination unreachable message
+ * The buffer containing the packet should be at lest large enough for an ICMP destination unreachable message
+ * Which is:
+ *      IPv4:   20 + 8 + Original IPv4 header length + 8 bytes long
+ *      IPv6:   40 + 8 + Original IPv6 header length + 8 bytes long
  * @param t2s       The Tun2Sock struct
  * @param pkt       The packet (Need to be a valid IP packet and mutable and big enough for error message)
  * @return          >0 The total length of the modified packet to be send back to the TUN
  *                  <0 Error number, and the packet shoud be dropped
  */
 int tun2sock_input(Tun2Sock* t2s, char* pkt);
-
-/***
- * The minimum size of the buffer of packet pased into tun2sock_input() to allow for an error message
- */
-#define TUN2SOCK_MIN_IPV4_PKT_BUFF_SIZE (20 + 8 + 20 + 8) //IPv4 header + ICMP header + IPv4 header + 8 bytes of payload
-#define TUN2SOCK_MIN_IPV6_PKT_BUFF_SIZE (40 + 8 + 40 + 8) //IPv6 header + ICMP header + IPv6 header + 8 bytes of payload
 
 /***
  * Get the original destination port using the NAT address
