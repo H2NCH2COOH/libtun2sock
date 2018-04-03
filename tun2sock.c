@@ -503,13 +503,8 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
 
     if(ipver == 4)
     {
-        if(memcmp(saddr, t2s->target_addr4, 4) == 0)
+        if(memcmp(saddr, t2s->target_addr4, 4) == 0 && sport == t2s->target_port4)
         {
-            if(sport != t2s->target_port4)
-            {
-                return tun2sock_error_resp(t2s, TUN2SOCK_E_DRPPKT, 4, pkt, protocol, l4hdr);
-            }
-
             int ret = conntrack_nat_search4(ctx->track4, &id, &conn4, daddr, dport);
             if(ret != 0)
             {
@@ -524,11 +519,6 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
         }
         else
         {
-            if(sport != t2s->target_port6)
-            {
-                return tun2sock_error_resp(t2s, TUN2SOCK_E_DRPPKT, 6, pkt, protocol, l4hdr);
-            }
-
             int ret = conntrack_conn_search4(ctx->track4, &id, &conn4, saddr, sport, daddr, dport, CONNTRACK_CONN_SEARCH_FLAG_CREAT);
             if(ret != 0)
             {
@@ -541,16 +531,13 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
             sport = conn4->nat_port;
             dport = t2s->target_port4;
         }
+
+        ipv4_hdr_calc_checksum(ipv4hdr);
     }
     else
     {
-        if(memcmp(saddr, t2s->target_addr4, 4) == 0)
+        if(memcmp(saddr, t2s->target_addr6, 16) == 0 && sport == t2s->target_port6)
         {
-            if(sport != t2s->target_port6)
-            {
-                return TUN2SOCK_E_BADPKT;
-            }
-
             int ret = conntrack_nat_search6(ctx->track6, &id, &conn6, daddr, dport);
             if(ret != 0)
             {
@@ -609,8 +596,6 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
 
     if(ipver == 4)
     {
-        ipv4_hdr_calc_checksum(ipv4hdr);
-
         conntrack_touch(ctx->track4, id, conn, CONN_ST_DFT);
     }
     else
@@ -618,7 +603,7 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
         conntrack_touch(ctx->track6, id, conn, CONN_ST_DFT);
     }
 
-    return 0;
+    return (int)pkt_len;
 }
 
 int_fast32_t tun2sock_get_original_port4(Tun2Sock* t2s, uint8_t addr[4], uint16_t port)

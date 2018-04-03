@@ -314,7 +314,10 @@ static void conntrack_remove_from_nat(int ipver, ConnTrack* track, PoolId id, Co
 static int conntrack_nat_search(int ipver, ConnTrack* track, PoolId* id_out, Conn** conn_out, uint8_t* addr, uint16_t port, uint32_t* hash_out)
 {
     uint32_t hash = conntrack_nat_hash(ipver, track, addr, port);
-    *hash_out = hash;
+    if(hash_out != NULL)
+    {
+        *hash_out = hash;
+    }
 
     uint32_t now = track->time();
 

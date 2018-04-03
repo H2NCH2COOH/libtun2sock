@@ -1,5 +1,5 @@
 CC ?= gcc
-CFLAGS += -std=c99 -Wall -Wextra -O2
+CFLAGS += -std=c99 -Wall -Wextra -O2 -g
 
 OBJECTS  = ipv4.o
 OBJECTS += ipv6.o

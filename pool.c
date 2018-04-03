@@ -63,6 +63,7 @@ Pool* pool_create(void* (*realloc)(void*, size_t), size_t obj_size, int max_cnt,
             return NULL;
         }
 
+        p->aa = (void*)p + sizeof(Pool);
         p->aa_size = aa_size;
     }
 
