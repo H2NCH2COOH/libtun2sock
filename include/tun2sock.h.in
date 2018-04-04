@@ -154,8 +154,8 @@ void tun2sock_get_version(int* major, int* minor);
 /***
  * Get library version during compileing
  */
-#define TUN2SOCK_VERSION_MAJOR  0
-#define TUN2SOCK_VERSION_MINOR  1
+#define TUN2SOCK_VERSION_MAJOR  @VERSION_MAJOR@
+#define TUN2SOCK_VERSION_MINOR  @VERSION_MINOR@
 
 /***
  * Input a packet
