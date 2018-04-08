@@ -47,6 +47,7 @@ AC_CONFIG_FILES([
     Makefile
     src/Makefile
     include/Makefile
+    libtun2sock.pc
 ])
 
 AC_OUTPUT

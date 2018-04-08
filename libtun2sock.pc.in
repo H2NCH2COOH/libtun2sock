@@ -1,0 +1,9 @@
+prefix=@prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libtun2sock
+Description: A C library to turn TUN interface into socket operation
+Version: @PACKAGE_VERSION@
+Libs: -L${libdir} -ltun2sock
+Cflags: -I{includedir}

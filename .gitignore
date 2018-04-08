@@ -4,6 +4,8 @@
 *.la
 *.swp
 
+/libtun2sock.pc
+
 Makefile
 Makefile.in
 /config.h
