@@ -4,8 +4,6 @@
 *.la
 *.swp
 
-include/tun2sock.h
-
 Makefile
 Makefile.in
 /config.h

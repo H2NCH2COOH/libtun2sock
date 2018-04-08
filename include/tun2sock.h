@@ -145,17 +145,11 @@ void tun2sock_cleanup(Tun2Sock* t2s);
 const char* tun2sock_strerr(int err);
 
 /***
- * Get library version during runtime
+ * Get library version
  * @param major     The major version number output
  * @param minor     The minor version number output
  */
 void tun2sock_get_version(int* major, int* minor);
-
-/***
- * Get library version during compileing
- */
-#define TUN2SOCK_VERSION_MAJOR  @VERSION_MAJOR@
-#define TUN2SOCK_VERSION_MINOR  @VERSION_MINOR@
 
 /***
  * Input a packet

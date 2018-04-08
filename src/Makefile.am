@@ -2,8 +2,7 @@ AM_CFLAGS = -O2 -g -Wall -Wextra
 AM_CPPFLAGS = -I../include
 
 lib_LTLIBRARIES = libtun2sock.la
-libtun2sock_la_LDFLAGS = -version-info @VERSION_MAJOR@:@VERSION_MINOR@
-
+libtun2sock_la_LDFLAGS = -version-info @PACKAGE_VERSION_MAJOR@:@PACKAGE_VERSION_MINOR@:0
 libtun2sock_la_SOURCES = conntrack.c \
     conntrack.h \
     icmp.c \

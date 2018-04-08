@@ -1,3 +1,4 @@
+#include <config.h>
 #include <string.h>
 #include "tun2sock.h"
 #include "conntrack.h"
@@ -187,12 +188,12 @@ void tun2sock_get_version(int* major, int* minor)
 {
     if(major != NULL)
     {
-        *major = TUN2SOCK_VERSION_MAJOR;
+        *major = PACKAGE_VERSION_MAJOR;
     }
 
     if(minor != NULL)
     {
-        *minor = TUN2SOCK_VERSION_MINOR;
+        *minor = PACKAGE_VERSION_MINOR;
     }
 }
 

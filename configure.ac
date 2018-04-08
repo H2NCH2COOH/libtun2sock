@@ -1,10 +1,16 @@
 AC_PREREQ([2.69])
-AC_INIT([libtun2sock], [0.1], [wzypublic@gmail.com])
+
+define([PKG_VER_MAJOR], [0])
+define([PKG_VER_MINOR], [1])
+
+AC_INIT([libtun2sock], PKG_VER_MAJOR.PKG_VER_MINOR, [wzypublic@gmail.com])
+
+AC_DEFINE([PACKAGE_VERSION_MAJOR], PKG_VER_MAJOR, [Major version number])
+AC_SUBST( [PACKAGE_VERSION_MAJOR], PKG_VER_MAJOR)
+AC_DEFINE([PACKAGE_VERSION_MINOR], PKG_VER_MINOR, [Minor version number])
+AC_SUBST( [PACKAGE_VERSION_MINOR], PKG_VER_MINOR)
 
 AC_CONFIG_MACRO_DIR([m4])
-
-AC_SUBST([VERSION_MAJOR], [0])
-AC_SUBST([VERSION_MINOR], [1])
 
 AM_INIT_AUTOMAKE([-Wall foreign])
 
@@ -12,6 +18,7 @@ AC_CONFIG_SRCDIR([include/tun2sock.h])
 AC_CONFIG_SRCDIR([src/tun2sock.c])
 
 AC_CONFIG_HEADERS([config.h])
+
 
 # Checks for programs.
 AC_PROG_CC_C99
@@ -40,7 +47,6 @@ AC_CONFIG_FILES([
     Makefile
     src/Makefile
     include/Makefile
-    include/tun2sock.h
 ])
 
 AC_OUTPUT
