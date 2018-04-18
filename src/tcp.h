@@ -32,7 +32,7 @@ typedef struct
 #define tcp_hdr_flags_FIN               0x0001
 #define tcp_hdr_flags(hdr)              ((((hdr)->_b12 & 0x01) << 8) | ((hdr)->_b13))
 #define tcp_hdr_flgas_set(hdr, v)       do{ \
-        (hdr)->_b12 = ((hdr)->_b12 & 0x01) | (((v) & 0x0100) >> 8); \
+        (hdr)->_b12 = ((hdr)->_b12 & 0xFE) | (((v) & 0x0100) >> 8); \
         (hdr)->_b13 = (v) & 0xFF; \
     }while(0)
 

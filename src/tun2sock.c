@@ -278,6 +278,7 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
     {
         TCPHeader* tcphdr = l4hdr;
         TCPHeader tcphdr_out;
+        memset(&tcphdr_out, 0, sizeof(TCPHeader));
 
         tcphdr_out.sport = tcphdr->dport;
         tcphdr_out.dport = tcphdr->sport;
@@ -285,9 +286,19 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
         //XXX: This should work
         tcphdr_out.seq = 0;
 
-        tcphdr_out.ack = 0;
+        uint32_t ack = tcphdr->seq;
+        uint8_t* ackb = &ack;
 
-        tcp_hdr_flgas_set(&tcphdr_out, tcp_hdr_flags_RST);
+        ++ackb[3];
+        if(ackb[3] == 0) ++ackb[2];
+        if(ackb[2] == 0) ++ackb[1];
+        if(ackb[1] == 0) ++ackb[0];
+
+        tcphdr_out.ack = ack;
+
+        tcp_hdr_dataoff_set(&tcphdr_out, 5);
+
+        tcp_hdr_flgas_set(&tcphdr_out, tcp_hdr_flags_RST | tcp_hdr_flags_ACK);
 
         tcphdr_out.win = 0;
 
@@ -317,11 +328,11 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
             tcp6_hdr_calc_checksum(saddr, daddr, &tcphdr_out, 0);
         }
 
-        memcpy(ptr, &tcphdr, sizeof(TCPHeader));
+        memcpy(ptr, &tcphdr_out, sizeof(TCPHeader));
 
         return (int)pkt_len;
     }
-    else if(!(t2s->flags & TUN2SOCK_FLAG_NO_ICMP_ERR_RSP))
+    else if(t2s->flags & TUN2SOCK_FLAG_NO_ICMP_ERR_RSP)
     {
         return err;
     }
@@ -339,7 +350,6 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
             icmphdr_out.type = 3;
             icmphdr_out.code = 0;
             icmphdr_out.zero = 0;
-            icmp4_hdr_calc_checksum(&icmphdr_out, data_len);
 
             pkt_len += sizeof(ICMPHeader);
 
@@ -348,13 +358,15 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
             ipv4_hdr_calc_checksum(&ipv4hdr_out);
             memcpy(ptr, &ipv4hdr_out, sizeof(IPv4Header));
             ptr += sizeof(IPv4Header);
+
+            memcpy(ptr, &icmphdr_out, sizeof(ICMPHeader));
+            icmp4_hdr_calc_checksum(ptr, data_len);
         }
         else
         {
             icmphdr_out.type = 1;
             icmphdr_out.code = 0;
             icmphdr_out.zero = 0;
-            icmp6_hdr_calc_checksum(saddr, daddr, &icmphdr_out, data_len);
 
             pkt_len += sizeof(ICMPHeader);
 
@@ -362,8 +374,10 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
             ipv6_hdr_len_set(&ipv6hdr_out, pkt_len);
             memcpy(ptr, &ipv6hdr_out, sizeof(IPv6Header));
             ptr += sizeof(IPv6Header);
+
+            memcpy(ptr, &icmphdr_out, sizeof(ICMPHeader));
+            icmp6_hdr_calc_checksum(saddr, daddr, ptr, data_len);
         }
-        memcpy(ptr, &icmphdr_out, sizeof(ICMPHeader));
 
         return (int)pkt_len;
     }

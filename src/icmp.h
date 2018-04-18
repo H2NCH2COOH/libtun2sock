@@ -8,7 +8,7 @@ typedef struct
     uint8_t type;
     uint8_t code;
     uint16_t checksum;
-    uint16_t zero;
+    uint32_t zero;
 } ICMPHeader;
 
 /***
