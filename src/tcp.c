@@ -2,6 +2,11 @@
 #include "protocol.h"
 #include "tcp.h"
 
+/*
+ * TODO: Optimize all checksum functions
+ * Based on a profile of single one-direction TCP stream transfer
+ * This function took 10% running time and 73.5% all user land running time
+ */
 static uint16_t tcp_hdr_checksum(uint8_t* fake_hdr, unsigned int fake_hdr_len, TCPHeader* hdr, uint16_t data_len)
 {
     uint32_t sum = 0;
