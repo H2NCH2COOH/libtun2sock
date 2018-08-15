@@ -6,7 +6,7 @@
 
 static inline uint16_t sum16(const uint8_t* arr, unsigned int cnt)
 {
-#if (UINT_MAX == UINT32_MAX)
+#if (SIZE_MAX == UINT32_MAX)
     uint32_t sum = 0;
     const uint32_t* p = (const uint32_t*)arr;
     while(cnt >= 4)
@@ -51,7 +51,7 @@ static inline uint16_t sum16(const uint8_t* arr, unsigned int cnt)
         ++s0;
     }
     return s0;
-#elif (UINT_MAX == UINT64_MAX)
+#elif (SIZE_MAX == UINT64_MAX)
     uint64_t sum = 0;
     const uint64_t* p = (const uint64_t*)arr;
     while(cnt >= 8)

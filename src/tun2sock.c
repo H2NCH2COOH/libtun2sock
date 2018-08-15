@@ -287,7 +287,7 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
         tcphdr_out.seq = 0;
 
         uint32_t ack = tcphdr->seq;
-        uint8_t* ackb = &ack;
+        uint8_t* ackb = (uint8_t*)&ack;
 
         ++ackb[3];
         if(ackb[3] == 0) ++ackb[2];

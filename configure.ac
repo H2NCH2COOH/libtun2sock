@@ -1,7 +1,7 @@
 AC_PREREQ([2.69])
 
 define([PKG_VER_MAJOR], [0])
-define([PKG_VER_MINOR], [2])
+define([PKG_VER_MINOR], [3])
 
 AC_INIT([libtun2sock], PKG_VER_MAJOR.PKG_VER_MINOR, [wzypublic@gmail.com])
 
