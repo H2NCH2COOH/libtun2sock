@@ -19,4 +19,5 @@ libtun2sock_la_SOURCES = conntrack.c \
     tcp.h \
     tun2sock.c \
     udp.c \
-    udp.h
+    udp.h \
+    util.h

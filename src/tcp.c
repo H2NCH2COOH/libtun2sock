@@ -1,12 +1,8 @@
 #include <string.h>
 #include "protocol.h"
 #include "tcp.h"
+#include "util.h"
 
-/*
- * TODO: Optimize all checksum functions
- * Based on a profile of single one-direction TCP stream transfer
- * This function took 10% running time and 73.5% all user land running time
- */
 static uint16_t tcp_hdr_checksum(uint8_t* fake_hdr, unsigned int fake_hdr_len, TCPHeader* hdr, uint16_t data_len)
 {
     uint32_t sum = 0;
@@ -14,17 +10,6 @@ static uint16_t tcp_hdr_checksum(uint8_t* fake_hdr, unsigned int fake_hdr_len, T
     unsigned int tcphdr_len = tcp_hdr_dataoff(hdr) * 4;
     unsigned int l = tcphdr_len + data_len;
     uint16_t* p;
-    uint8_t last_word[2];
-
-    last_word[0] = 0;
-    last_word[1] = 0;
-
-    if(data_len & 1)
-    {
-        last_word[0] = *(((uint8_t*)hdr) + l - 1);
-        --data_len;
-        --l;
-    }
 
     p = (uint16_t*)fake_hdr;
     for(i = 0; i < (fake_hdr_len >> 1); ++i)
@@ -32,14 +17,7 @@ static uint16_t tcp_hdr_checksum(uint8_t* fake_hdr, unsigned int fake_hdr_len, T
         sum += *p++;
     }
 
-    p = (uint16_t*)hdr;
-    for(i = 0; i < (l >> 1); ++i)
-    {
-        sum += *p++;
-    }
-
-    p = (uint16_t*)last_word;
-    sum += *p;
+    sum += sum16((const uint8_t*)hdr, l);
 
     while(sum >> 16)
     {
