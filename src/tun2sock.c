@@ -457,8 +457,8 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
         daddr = ipv6hdr->dst.b;
     }
 
-    UDPHeader* udphdr;
-    TCPHeader* tcphdr;
+    UDPHeader* udphdr = NULL;
+    TCPHeader* tcphdr = NULL;
     uint16_t sport;
     uint16_t dport;
     size_t data_len;
