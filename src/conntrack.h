@@ -64,7 +64,7 @@ typedef struct
     Pool* pool;
 
     int ht_size_bits;
-    uint32_t ht_lh;
+    uint32_t ht_iv;
     PoolId* ht_conn;
     PoolId* ht_nat;
 

@@ -7,13 +7,6 @@
 #define hashmask(n) (hashsize(n)-1)
 uint32_t hashword(const uint32_t* k, size_t len, uint32_t initval);
 
-static uint32_t conntrack_hash(ConnTrack* track, const uint32_t* k, size_t len)
-{
-    uint32_t hash = hashword(k, len, track->ht_lh);
-    track->ht_lh = hash;
-    return hash & hashmask(track->ht_size_bits);
-}
-
 int conntrack_init(ConnTrack* track, int ipver, void* (*realloc)(void*, size_t),
     int conn_max_size_bits, int conn_grow_step_bits,
     uint32_t (*time)(), uint32_t timeouts[CONN_ST_SIZE])
@@ -42,7 +35,7 @@ int conntrack_init(ConnTrack* track, int ipver, void* (*realloc)(void*, size_t),
 
     //Create hash initval using time()
     uint32_t now = time();
-    track->ht_lh = hashword(&now, 1, 0);
+    track->ht_iv = hashword(&now, 1, 0);
 
     size_t ht_size = 1 << track->ht_size_bits;
 
@@ -126,7 +119,7 @@ static uint32_t conntrack_nat_hash(int ipver, ConnTrack* track, uint8_t* addr, u
         key_len = sizeof(key6) / 4;
     }
 
-    return conntrack_hash(track, key, key_len);
+    return hashword(key, key_len, track->ht_iv) & hashmask(track->ht_size_bits);
 }
 
 static uint32_t conntrack_nat_hash_conn(int ipver, ConnTrack* track, Conn* conn)
@@ -213,7 +206,7 @@ static void conntrack_add_to_conn(int ipver, ConnTrack* track, PoolId id, Conn* 
     }
     else
     {
-        hash = conntrack_hash(track, (void*)conn + sizeof(Conn), (ipver == 4)? (4 + 2 + 4 + 2)/4 : (16 + 2 + 16 + 2)/4);
+        hash = hashword((void*)conn + sizeof(Conn), (ipver == 4)? (4 + 2 + 4 + 2)/4 : (16 + 2 + 16 + 2)/4, track->ht_iv) & hashmask(track->ht_size_bits);
     }
 
     conn->ht_conn_prev = POOLID_NULL;
@@ -238,7 +231,7 @@ static void conntrack_remove_from_conn(int ipver, ConnTrack* track, PoolId id, C
         }
         else
         {
-            hash = conntrack_hash(track, (void*)conn + sizeof(Conn), (ipver == 4)? (4 + 2 + 4 + 2)/4 : (16 + 2 + 16 + 2)/4);
+            hash = hashword((void*)conn + sizeof(Conn), (ipver == 4)? (4 + 2 + 4 + 2)/4 : (16 + 2 + 16 + 2)/4, track->ht_iv) & hashmask(track->ht_size_bits);
         }
         track->ht_conn[hash] = conn->ht_conn_next;
     }
@@ -482,7 +475,7 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
         key_len = sizeof(key6) / 4;
     }
 
-    uint32_t hash = conntrack_hash(track, key, key_len);
+    uint32_t hash = hashword(key, key_len, track->ht_iv) & hashmask(track->ht_size_bits);
 
     PoolId last_free = POOLID_NULL;
     Conn* last_free_conn = NULL;
