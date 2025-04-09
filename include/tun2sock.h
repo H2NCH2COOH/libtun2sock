@@ -79,7 +79,7 @@ struct Tun2Sock_s
      * The unit of time this function returns does not matter
      * As long as the unit is the same used in the timeouts, all will be fine
      */
-    uint32_t (*time)();
+    uint32_t (*time)(void);
 
     /***
      * TUN2SOCK_FLAG_* ORed

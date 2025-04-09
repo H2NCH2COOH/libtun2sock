@@ -68,7 +68,7 @@ typedef struct
     PoolId* ht_conn;
     PoolId* ht_nat;
 
-    uint32_t (*time)();
+    uint32_t (*time)(void);
 
     uint32_t timeouts[CONN_ST_SIZE];
     struct
@@ -101,7 +101,7 @@ typedef struct
  */
 int conntrack_init(ConnTrack* track, int ipver, void* (*realloc)(void*, size_t),
     int conn_max_size_bits, int conn_grow_step_bits,
-    uint32_t (*time)(), uint32_t timeouts[CONN_ST_SIZE]);
+    uint32_t (*time)(void), uint32_t timeouts[CONN_ST_SIZE]);
 
 /***
  * Destroy and a connection track

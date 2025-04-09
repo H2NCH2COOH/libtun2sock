@@ -9,7 +9,7 @@ uint32_t hashword(const uint32_t* k, size_t len, uint32_t initval);
 
 int conntrack_init(ConnTrack* track, int ipver, void* (*realloc)(void*, size_t),
     int conn_max_size_bits, int conn_grow_step_bits,
-    uint32_t (*time)(), uint32_t timeouts[CONN_ST_SIZE])
+    uint32_t (*time)(void), uint32_t timeouts[CONN_ST_SIZE])
 {
     if(track == NULL || (ipver != 4 && ipver != 6) || realloc == NULL || time == NULL || timeouts == NULL)
     {
