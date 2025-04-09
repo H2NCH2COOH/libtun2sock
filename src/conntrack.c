@@ -97,7 +97,7 @@ static uint32_t conntrack_nat_hash(int ipver, ConnTrack* track, uint8_t* addr, u
         uint16_t zero;
     } key6;
 
-    void* key;
+    uint32_t* key;
     size_t key_len;
 
     if(ipver == 4)
@@ -106,7 +106,7 @@ static uint32_t conntrack_nat_hash(int ipver, ConnTrack* track, uint8_t* addr, u
         key4.port = port;
         key4.zero = 0;
 
-        key = &key4;
+        key = (uint32_t*)&key4;
         key_len = sizeof(key4) / 4;
     }
     else
@@ -115,7 +115,7 @@ static uint32_t conntrack_nat_hash(int ipver, ConnTrack* track, uint8_t* addr, u
         key6.port = port;
         key6.zero = 0;
 
-        key = &key6;
+        key = (uint32_t*)&key6;
         key_len = sizeof(key6) / 4;
     }
 
@@ -206,7 +206,7 @@ static void conntrack_add_to_conn(int ipver, ConnTrack* track, PoolId id, Conn* 
     }
     else
     {
-        hash = hashword((void*)conn + sizeof(Conn), (ipver == 4)? (4 + 2 + 4 + 2)/4 : (16 + 2 + 16 + 2)/4, track->ht_iv) & hashmask(track->ht_size_bits);
+        hash = hashword((uint32_t*)(conn + 1), (ipver == 4)? (4 + 2 + 4 + 2)/4 : (16 + 2 + 16 + 2)/4, track->ht_iv) & hashmask(track->ht_size_bits);
     }
 
     conn->ht_conn_prev = POOLID_NULL;
@@ -231,7 +231,7 @@ static void conntrack_remove_from_conn(int ipver, ConnTrack* track, PoolId id, C
         }
         else
         {
-            hash = hashword((void*)conn + sizeof(Conn), (ipver == 4)? (4 + 2 + 4 + 2)/4 : (16 + 2 + 16 + 2)/4, track->ht_iv) & hashmask(track->ht_size_bits);
+            hash = hashword((uint32_t*)(conn + 1), (ipver == 4)? (4 + 2 + 4 + 2)/4 : (16 + 2 + 16 + 2)/4, track->ht_iv) & hashmask(track->ht_size_bits);
         }
         track->ht_conn[hash] = conn->ht_conn_next;
     }
@@ -453,7 +453,7 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
         uint16_t dport;
     } key6;
 
-    void* key;
+    uint32_t* key;
     size_t key_len;
 
     if(ipver == 4)
@@ -462,7 +462,7 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
         key4.sport = sport;
         memcpy(key4.daddr, daddr, 4);
         key4.dport = dport;
-        key = &key4;
+        key = (uint32_t*)&key4;
         key_len = sizeof(key4) / 4;
     }
     else
@@ -471,7 +471,7 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
         key6.sport = sport;
         memcpy(key6.daddr, daddr, 16);
         key6.dport = dport;
-        key = &key6;
+        key = (uint32_t*)&key6;
         key_len = sizeof(key6) / 4;
     }
 
@@ -496,7 +496,7 @@ static int conntrack_conn_search(int ipver, ConnTrack* track, PoolId* id_out, Co
         }
         else
         {
-            if(memcmp(key, (void*)conn + sizeof(Conn), key_len * 4) == 0)
+            if(memcmp(key, conn + 1, key_len * 4) == 0)
             {
                 //Found
                 if((flags & CONNTRACK_CONN_SEARCH_FLAG_CREAT) && (flags & CONNTRACK_CONN_SEARCH_FLAG_EXCL))

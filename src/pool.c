@@ -1,4 +1,5 @@
 #include "pool.h"
+#include <stdint.h>
 
 //TODO: Optimize for when grow_step is 2 ** N
 
@@ -10,7 +11,7 @@ struct Pool_s
     int max_cnt;
     int grow_step;
 
-    void** aa;
+    uint8_t** aa;
     size_t aa_size;
     size_t aa_cnt;
 
@@ -45,7 +46,7 @@ Pool* pool_create(void* (*realloc)(void*, size_t), size_t obj_size, int max_cnt,
             return NULL;
         }
 
-        p->aa = realloc(NULL, sizeof(void*) * INFINIT_AA_STEP);
+        p->aa = realloc(NULL, sizeof(uint8_t*) * INFINIT_AA_STEP);
         if(p->aa == NULL)
         {
             (void)realloc(p, 0);
@@ -57,13 +58,13 @@ Pool* pool_create(void* (*realloc)(void*, size_t), size_t obj_size, int max_cnt,
     else
     {
         size_t aa_size = max_cnt / grow_step;
-        p = realloc(NULL, sizeof(Pool) + sizeof(void*) * aa_size);
+        p = realloc(NULL, sizeof(Pool) + sizeof(uint8_t*) * aa_size);
         if(p == NULL)
         {
             return NULL;
         }
 
-        p->aa = (void*)p + sizeof(Pool);
+        p->aa = (uint8_t**)(p + 1);
         p->aa_size = aa_size;
     }
 
@@ -144,7 +145,7 @@ int pool_get(Pool* p, PoolId* id, void** obj)
         if(p->aa_cnt == p->aa_size)
         {
             //assert(p->max_cnt < 0);
-            void** aa = p->realloc(p->aa, sizeof(void*) * (p->aa_size + INFINIT_AA_STEP));
+            uint8_t** aa = p->realloc(p->aa, sizeof(uint8_t*) * (p->aa_size + INFINIT_AA_STEP));
             if(aa == NULL)
             {
                 return -2;
@@ -154,7 +155,7 @@ int pool_get(Pool* p, PoolId* id, void** obj)
             p->aa_size += INFINIT_AA_STEP;
         }
 
-        void* a = p->realloc(NULL, p->obj_size * p->grow_step);
+        uint8_t* a = p->realloc(NULL, p->obj_size * p->grow_step);
         if(a == NULL)
         {
             return -2;

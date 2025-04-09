@@ -87,7 +87,7 @@ int tun2sock_init(Tun2Sock* t2s)
 
     if(t2s->flags & TUN2SOCK_FLAG_IPV4)
     {
-        ConnTrack* track4 = (void*)ctx + sizeof(Tun2SockCtx);
+        ConnTrack* track4 = (ConnTrack*)(ctx + 1);
 
         err = conntrack_init(track4, 4, t2s->realloc, t2s->max_connections_bits, t2s->max_connections_bits, t2s->time, timeouts);
         if(err != 0)
@@ -100,7 +100,7 @@ int tun2sock_init(Tun2Sock* t2s)
 
     if(t2s->flags & TUN2SOCK_FLAG_IPV6)
     {
-        ConnTrack* track6 = (void*)ctx + sizeof(Tun2SockCtx);
+        ConnTrack* track6 = (ctx->track4 != NULL)? ctx->track4 + 1 : (ConnTrack*)(ctx + 1);
 
         err = conntrack_init(track6, 6, t2s->realloc, t2s->max_connections_bits, t2s->max_connections_bits, t2s->time, timeouts);
         if(err != 0)
@@ -197,7 +197,7 @@ void tun2sock_get_version(int* major, int* minor)
     }
 }
 
-static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, int l4proto, void* l4hdr)
+static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, uint8_t* l3hdr, int l4proto, uint8_t* l4hdr)
 {
     switch(err)
     {
@@ -220,7 +220,7 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
 
     if(ipver == 4)
     {
-        IPv4Header* ipv4hdr = l3hdr;
+        IPv4Header* ipv4hdr = (IPv4Header*)l3hdr;
 
         ipv4_hdr_version_set(&ipv4hdr_out, 4);
         ipv4_hdr_ihl_set(&ipv4hdr_out, 5);
@@ -252,7 +252,7 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
     }
     else
     {
-        IPv6Header* ipv6hdr = l3hdr;
+        IPv6Header* ipv6hdr = (IPv6Header*)l3hdr;
 
         ipv6_hdr_version_set(&ipv6hdr_out, 6);
         ipv6_hdr_traffic_class_set(&ipv6hdr_out, 0);
@@ -276,7 +276,7 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
 
     if(l4proto == PROTO_TCP && !(t2s->flags & TUN2SOCK_FLAG_NO_TCP_RST_ERR_RSP))
     {
-        TCPHeader* tcphdr = l4hdr;
+        TCPHeader* tcphdr = (TCPHeader*)l4hdr;
         TCPHeader tcphdr_out;
         memset(&tcphdr_out, 0, sizeof(TCPHeader));
 
@@ -309,7 +309,7 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
         //Fill protocol field in IP header
         *proto = PROTO_TCP;
 
-        void* ptr = l3hdr;
+        uint8_t* ptr = l3hdr;
         if(ipver == 4)
         {
             ipv4_hdr_len_set(&ipv4hdr_out, pkt_len);
@@ -339,7 +339,7 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
     else
     {
         //Generate ICMP destination unreachable
-        void* ptr = l3hdr;
+        uint8_t* ptr = l3hdr;
         size_t data_len = l4hdr - l3hdr + 8;
         memmove(ptr + pkt_len + sizeof(ICMPHeader), l3hdr, data_len); //pkt_len should be the IP header length
         pkt_len += data_len;
@@ -360,7 +360,7 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
             ptr += sizeof(IPv4Header);
 
             memcpy(ptr, &icmphdr_out, sizeof(ICMPHeader));
-            icmp4_hdr_calc_checksum(ptr, data_len);
+            icmp4_hdr_calc_checksum((ICMPHeader*)ptr, data_len);
         }
         else
         {
@@ -376,14 +376,14 @@ static int tun2sock_error_resp(Tun2Sock* t2s, int err, int ipver, void* l3hdr, i
             ptr += sizeof(IPv6Header);
 
             memcpy(ptr, &icmphdr_out, sizeof(ICMPHeader));
-            icmp6_hdr_calc_checksum(saddr, daddr, ptr, data_len);
+            icmp6_hdr_calc_checksum(saddr, daddr, (ICMPHeader*)ptr, data_len);
         }
 
         return (int)pkt_len;
     }
 }
 
-int tun2sock_input(Tun2Sock* t2s, char* pkt)
+int tun2sock_input(Tun2Sock* t2s, uint8_t* pkt)
 {
     if(t2s == NULL || t2s->internal == NULL || pkt == NULL)
     {
@@ -406,7 +406,7 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
 
     size_t pkt_len = (ipver == 4)? ipv4_hdr_len(ipv4hdr) : ipv6_hdr_len(ipv6hdr);
 
-    void* l4hdr;
+    uint8_t* l4hdr;
     size_t l4_len;
     int protocol;
 
@@ -439,12 +439,12 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
         }
 
         int next_hdr = ipv6hdr->next_hdr;
-        void* next = pkt + sizeof(IPv6Header);
+        uint8_t* next = pkt + sizeof(IPv6Header);
         l4_len = pkt_len - sizeof(IPv6Header);
 
         while(proto_is_ipv6_hdr_ext(next_hdr))
         {
-            IPv6HeaderExtBase* base = next;
+            IPv6HeaderExtBase* base = (IPv6HeaderExtBase*)next;
             next_hdr = base->next_hdr;
             next += ipv6_hdr_ext_len(base);
             l4_len -= ipv6_hdr_ext_len(base);
@@ -466,7 +466,7 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
     switch(protocol)
     {
         case PROTO_TCP:
-            tcphdr = l4hdr;
+            tcphdr = (TCPHeader*)l4hdr;
             data_len = l4_len - 4 * tcp_hdr_dataoff(tcphdr);
             if(ipver == 4)
             {
@@ -487,7 +487,7 @@ int tun2sock_input(Tun2Sock* t2s, char* pkt)
             dport = tcphdr->dport;
             break;
         case PROTO_UDP:
-            udphdr = l4hdr;
+            udphdr = (UDPHeader*)l4hdr;
             data_len = l4_len - sizeof(UDPHeader);
             if(ipver == 4)
             {

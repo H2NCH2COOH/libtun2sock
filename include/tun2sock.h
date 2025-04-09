@@ -166,7 +166,7 @@ void tun2sock_get_version(int* major, int* minor);
  * @return          >0 The total length of the modified packet to be send back to the TUN
  *                  <0 Error number, and the packet shoud be dropped
  */
-int tun2sock_input(Tun2Sock* t2s, char* pkt);
+int tun2sock_input(Tun2Sock* t2s, uint8_t* pkt);
 
 /***
  * Get the original destination port using the NAT address
